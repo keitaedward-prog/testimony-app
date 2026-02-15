@@ -1,6 +1,7 @@
 // app/page.js - PUBLIC HOMEPAGE - FETCH ALL APPROVED POSTS (NO SERVER PAGINATION)
 import { db } from '@/lib/firebase';
 import { collection, getDocs, query, where, orderBy } from 'firebase/firestore';
+import { Suspense } from 'react';
 import PublicHomeClient from './components/PublicHomeClient';
 
 async function getAllApprovedPosts() {
@@ -56,5 +57,9 @@ export default async function HomePage() {
     console.log(`📍 Coordinate posts found: ${coordPosts.length}`);
   }
   
-  return <PublicHomeClient initialPosts={postsData} />;
+  return (
+    <Suspense fallback={<div>Loading page...</div>}>
+      <PublicHomeClient initialPosts={postsData} />
+    </Suspense>
+  );
 }
