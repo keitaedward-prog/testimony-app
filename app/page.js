@@ -4,6 +4,8 @@ import { collection, getDocs, query, where, orderBy } from 'firebase/firestore';
 import { Suspense } from 'react';
 import PublicHomeClient from './components/PublicHomeClient';
 
+export const dynamic = 'force-dynamic';
+
 async function getAllApprovedPosts() {
   try {
     const q = query(
