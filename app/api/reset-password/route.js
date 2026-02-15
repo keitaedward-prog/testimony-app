@@ -3,6 +3,10 @@ import admin from 'firebase-admin';
 import { NextResponse } from 'next/server';
 import { adminAuth, adminDb } from '@/lib/firebaseAdmin';
 
+export async function GET() {
+  return NextResponse.json({ message: 'Reset password API is reachable' });
+}
+
 export async function POST(request) {
   try {
     const { uid, newPassword } = await request.json();
