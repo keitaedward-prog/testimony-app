@@ -1,4 +1,4 @@
-// app/components/ElearningManagement.js
+// app/admin/dashboard/components/ElearningManagement.js
 "use client";
 
 import { useState, useEffect } from 'react';
@@ -213,7 +213,7 @@ export default function ElearningManagement() {
               <option value="image">Image</option>
               <option value="audio">Audio</option>
               <option value="video">Video</option>
-              <option value="document">Document</option> {/* New option */}
+              <option value="document">Document</option>
             </select>
           </div>
           {type !== 'text' && (
@@ -226,7 +226,7 @@ export default function ElearningManagement() {
                   type === 'image' ? 'image/*' :
                   type === 'audio' ? 'audio/*' :
                   type === 'video' ? 'video/*' :
-                  '.pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.txt' // for documents
+                  '.pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.txt'
                 } 
                 className="w-full p-2 bg-gray-700 rounded" 
               />
@@ -264,11 +264,9 @@ export default function ElearningManagement() {
                 {post.type === 'audio' && <audio controls src={post.mediaUrl} className="w-full" />}
                 {post.type === 'video' && <video controls src={post.mediaUrl} className="w-full max-h-60" />}
                 {post.type === 'document' && (
-                  <div className="mt-2">
-                    <a href={post.mediaUrl} target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:underline">
-                      📄 View Document
-                    </a>
-                  </div>
+                  <a href={post.mediaUrl} target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:underline">
+                    View Document
+                  </a>
                 )}
               </div>
             )}
