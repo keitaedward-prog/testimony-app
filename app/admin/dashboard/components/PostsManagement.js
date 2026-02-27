@@ -72,10 +72,15 @@ export default function PostsManagement() {
     try {
       let q;
       if (filter === 'all') {
-        q = query(collection(db, 'testimonies'), orderBy('createdAt', 'desc'));
+        q = query(
+          collection(db, 'testimonies'),
+          where('type', 'in', ['text', 'image', 'audio', 'video']),
+          orderBy('createdAt', 'desc')
+        );
       } else {
         q = query(
-          collection(db, 'testimonies'), 
+          collection(db, 'testimonies'),
+          where('type', 'in', ['text', 'image', 'audio', 'video']),
           where('status', '==', filter),
           orderBy('createdAt', 'desc')
         );
@@ -232,7 +237,6 @@ export default function PostsManagement() {
   const pendingCount = allPosts.filter(p => p.status === 'pending').length;
   const approvedCount = allPosts.filter(p => p.status === 'approved').length;
   const rejectedCount = allPosts.filter(p => p.status === 'rejected').length;
-  const coordinateCount = allPosts.filter(p => p.type === 'coordinates').length;
 
   if (loading) {
     return (
@@ -299,12 +303,11 @@ export default function PostsManagement() {
 
       {/* Stats Card */}
       <div className="mb-6 p-4 bg-gray-800 rounded-lg">
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <div className="text-center"><div className="text-2xl font-bold">{allPosts.length}</div><div className="text-sm text-gray-400">Total</div></div>
           <div className="text-center"><div className="text-2xl font-bold text-yellow-400">{pendingCount}</div><div className="text-sm text-gray-400">Pending</div></div>
           <div className="text-center"><div className="text-2xl font-bold text-green-400">{approvedCount}</div><div className="text-sm text-gray-400">Approved</div></div>
           <div className="text-center"><div className="text-2xl font-bold text-red-400">{rejectedCount}</div><div className="text-sm text-gray-400">Rejected</div></div>
-          <div className="text-center"><div className="text-2xl font-bold text-purple-400">{coordinateCount}</div><div className="text-sm text-gray-400">Coordinates</div></div>
         </div>
       </div>
 

@@ -1,4 +1,4 @@
-// app/add-testimony/page.js - WITH PROPER PLACE NAME CAPTURE
+// app/add-testimony/page.js - WITH PROPER PLACE NAME CAPTURE + AUDIO ALONGSIDE IMAGE
 "use client";
 
 import { useState, useEffect } from 'react';
@@ -18,10 +18,11 @@ export default function AddTestimonyPage() {
   const [postType, setPostType] = useState('text');
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
-  const [file, setFile] = useState(null);
+  const [file, setFile] = useState(null);               // main media file (image/video/audio)
   const [filePreview, setFilePreview] = useState('');
+  const [audioFile, setAudioFile] = useState(null);     // additional audio for image posts
   
-  // Location states - NOW CAPTURING PLACE NAME
+  // Location states
   const [location, setLocation] = useState(null);
   const [locationError, setLocationError] = useState('');
   const [isGettingLocation, setIsGettingLocation] = useState(false);
@@ -31,7 +32,7 @@ export default function AddTestimonyPage() {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
-  // 1. CHECK AUTH - User must be logged in
+  // 1. CHECK AUTH
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
       if (currentUser) {
@@ -44,147 +45,134 @@ export default function AddTestimonyPage() {
     return () => unsubscribe();
   }, [router]);
 
-// 2. GET USER LOCATION WITH DETAILED ADDRESS INCLUDING STREET NAME
-const getLocationWithPlaceName = () => {
-  return new Promise((resolve, reject) => {
-    if (!navigator.geolocation) {
-      reject(new Error('Geolocation is not supported by your browser'));
-      return;
-    }
-
-    setIsGettingLocation(true);
-    setLocationError('');
-
-    navigator.geolocation.getCurrentPosition(
-      async (position) => {
-        try {
-          const { latitude, longitude, accuracy } = position.coords;
-          
-          // Try to get detailed address using reverse geocoding
-          let placeName = 'Unknown Location';
-          let detailedAddress = {};
-          
-          try {
-            // Use OpenStreetMap Nominatim API with more detailed request
-            const response = await fetch(
-              `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}&addressdetails=1&zoom=18`
-            );
-            
-            if (response.ok) {
-              const data = await response.json();
-              
-              if (data.address) {
-                const address = data.address;
-                detailedAddress = address;
-                
-                // Build a detailed address string
-                const addressParts = [];
-                
-                // Street level details
-                if (address.road) addressParts.push(address.road); // Street name
-                if (address.house_number) addressParts.push(address.house_number); // House number
-                
-                // Neighborhood level
-                if (address.neighbourhood) addressParts.push(address.neighbourhood);
-                if (address.suburb) addressParts.push(address.suburb);
-                
-                // City level
-                if (address.city) addressParts.push(address.city);
-                else if (address.town) addressParts.push(address.town);
-                else if (address.village) addressParts.push(address.village);
-                else if (address.municipality) addressParts.push(address.municipality);
-                
-                // Region/State level
-                if (address.state) addressParts.push(address.state);
-                
-                // Country
-                if (address.country) addressParts.push(address.country);
-                
-                if (addressParts.length > 0) {
-                  placeName = addressParts.join(', ');
-                }
-                
-                // Create a shorter version for display
-                let shortPlaceName = '';
-                if (address.road) {
-                  shortPlaceName = address.road;
-                  if (address.house_number) shortPlaceName = `${address.house_number} ${shortPlaceName}`;
-                  if (address.city || address.town || address.village) {
-                    shortPlaceName += `, ${address.city || address.town || address.village}`;
-                  }
-                } else {
-                  shortPlaceName = placeName;
-                }
-                
-                // Store both detailed and short versions
-                detailedAddress.shortPlaceName = shortPlaceName;
-                detailedAddress.fullPlaceName = placeName;
-              }
-            }
-          } catch (geocodeError) {
-            console.log('Geocoding failed, using coordinates as fallback:', geocodeError);
-            placeName = `${latitude.toFixed(4)}, ${longitude.toFixed(4)}`;
-            detailedAddress = {
-              coordinates: `${latitude.toFixed(6)}, ${longitude.toFixed(6)}`,
-              shortPlaceName: placeName,
-              fullPlaceName: placeName
-            };
-          }
-
-          const locationData = {
-            latitude,
-            longitude,
-            accuracy,
-            placeName: detailedAddress.shortPlaceName || placeName,
-            detailedAddress: detailedAddress,
-            timestamp: new Date().toISOString(),
-          };
-          
-          setLocation(locationData);
-          setIsGettingLocation(false);
-          console.log('✅ Detailed location captured:', locationData);
-          resolve(locationData);
-        } catch (error) {
-          setIsGettingLocation(false);
-          reject(error);
-        }
-      },
-      (error) => {
-        setIsGettingLocation(false);
-        let errorMessage = '';
-        switch (error.code) {
-          case error.PERMISSION_DENIED:
-            errorMessage = 'Location permission denied. Please enable location to post.';
-            break;
-          case error.POSITION_UNAVAILABLE:
-            errorMessage = 'Location information is unavailable.';
-            break;
-          case error.TIMEOUT:
-            errorMessage = 'Location request timed out.';
-            break;
-          default:
-            errorMessage = 'An unknown error occurred.';
-            break;
-        }
-        setLocationError(errorMessage);
-        reject(new Error(errorMessage));
-      },
-      {
-        enableHighAccuracy: true,
-        timeout: 20000, // 20 seconds to allow for detailed geocoding
-        maximumAge: 0,
+  // 2. GET LOCATION WITH PLACE NAME
+  const getLocationWithPlaceName = () => {
+    return new Promise((resolve, reject) => {
+      if (!navigator.geolocation) {
+        reject(new Error('Geolocation is not supported by your browser'));
+        return;
       }
-    );
-  });
-};
 
-  // 3. HANDLE FILE SELECTION
+      setIsGettingLocation(true);
+      setLocationError('');
+
+      navigator.geolocation.getCurrentPosition(
+        async (position) => {
+          try {
+            const { latitude, longitude, accuracy } = position.coords;
+            
+            let placeName = 'Unknown Location';
+            let detailedAddress = {};
+            
+            try {
+              const response = await fetch(
+                `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}&addressdetails=1&zoom=18`
+              );
+              
+              if (response.ok) {
+                const data = await response.json();
+                
+                if (data.address) {
+                  const address = data.address;
+                  detailedAddress = address;
+                  
+                  const addressParts = [];
+                  
+                  if (address.road) addressParts.push(address.road);
+                  if (address.house_number) addressParts.push(address.house_number);
+                  if (address.neighbourhood) addressParts.push(address.neighbourhood);
+                  if (address.suburb) addressParts.push(address.suburb);
+                  if (address.city) addressParts.push(address.city);
+                  else if (address.town) addressParts.push(address.town);
+                  else if (address.village) addressParts.push(address.village);
+                  else if (address.municipality) addressParts.push(address.municipality);
+                  if (address.state) addressParts.push(address.state);
+                  if (address.country) addressParts.push(address.country);
+                  
+                  if (addressParts.length > 0) {
+                    placeName = addressParts.join(', ');
+                  }
+                  
+                  let shortPlaceName = '';
+                  if (address.road) {
+                    shortPlaceName = address.road;
+                    if (address.house_number) shortPlaceName = `${address.house_number} ${shortPlaceName}`;
+                    if (address.city || address.town || address.village) {
+                      shortPlaceName += `, ${address.city || address.town || address.village}`;
+                    }
+                  } else {
+                    shortPlaceName = placeName;
+                  }
+                  
+                  detailedAddress.shortPlaceName = shortPlaceName;
+                  detailedAddress.fullPlaceName = placeName;
+                }
+              }
+            } catch (geocodeError) {
+              console.log('Geocoding failed, using coordinates as fallback:', geocodeError);
+              placeName = `${latitude.toFixed(4)}, ${longitude.toFixed(4)}`;
+              detailedAddress = {
+                coordinates: `${latitude.toFixed(6)}, ${longitude.toFixed(6)}`,
+                shortPlaceName: placeName,
+                fullPlaceName: placeName
+              };
+            }
+
+            const locationData = {
+              latitude,
+              longitude,
+              accuracy,
+              placeName: detailedAddress.shortPlaceName || placeName,
+              detailedAddress: detailedAddress,
+              timestamp: new Date().toISOString(),
+            };
+            
+            setLocation(locationData);
+            setIsGettingLocation(false);
+            console.log('✅ Detailed location captured:', locationData);
+            resolve(locationData);
+          } catch (error) {
+            setIsGettingLocation(false);
+            reject(error);
+          }
+        },
+        (error) => {
+          setIsGettingLocation(false);
+          let errorMessage = '';
+          switch (error.code) {
+            case error.PERMISSION_DENIED:
+              errorMessage = 'Location permission denied. Please enable location to post.';
+              break;
+            case error.POSITION_UNAVAILABLE:
+              errorMessage = 'Location information is unavailable.';
+              break;
+            case error.TIMEOUT:
+              errorMessage = 'Location request timed out.';
+              break;
+            default:
+              errorMessage = 'An unknown error occurred.';
+              break;
+          }
+          setLocationError(errorMessage);
+          reject(new Error(errorMessage));
+        },
+        {
+          enableHighAccuracy: true,
+          timeout: 20000,
+          maximumAge: 0,
+        }
+      );
+    });
+  };
+
+  // 3. HANDLE MAIN FILE SELECTION
   const handleFileChange = (e) => {
     const selectedFile = e.target.files[0];
     if (!selectedFile) return;
 
-    if (selectedFile.size > 10 * 1024 * 1024) {
-      setError('File size must be less than 10MB');
+    // Max 500MB
+    if (selectedFile.size > 500 * 1024 * 1024) {
+      setError('File size must be less than 500MB');
       return;
     }
 
@@ -202,7 +190,32 @@ const getLocationWithPlaceName = () => {
     }
   };
 
-  // 4. HANDLE FORM SUBMISSION
+  // 4. HANDLE AUDIO FILE SELECTION (for image posts)
+  const handleAudioFileChange = (e) => {
+    const selectedFile = e.target.files[0];
+    if (!selectedFile) return;
+
+    if (selectedFile.size > 500 * 1024 * 1024) {
+      setError('Audio file size must be less than 500MB');
+      return;
+    }
+
+    setAudioFile(selectedFile);
+    setError('');
+  };
+
+  // 5. MANUALLY REQUEST LOCATION
+  const handleRequestLocation = async () => {
+    try {
+      const loc = await getLocationWithPlaceName();
+      alert(`Location captured: ${loc.placeName}`);
+      setLocation(loc);
+    } catch (error) {
+      // Error already shown
+    }
+  };
+
+  // 6. HANDLE FORM SUBMISSION
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!user) {
@@ -229,7 +242,7 @@ const getLocationWithPlaceName = () => {
         }
       }
 
-      // Upload file if needed
+      // Upload main file if needed
       let mediaUrl = '';
       let fileName = '';
 
@@ -240,7 +253,16 @@ const getLocationWithPlaceName = () => {
         mediaUrl = await getDownloadURL(storageRef);
       }
 
-      // Prepare testimony data WITH DETAILED LOCATION
+      // Upload audio file if present (for image posts)
+      let audioUrl = '';
+      if (postType === 'image' && audioFile) {
+        const audioFileName = `${Date.now()}_audio_${audioFile.name}`;
+        const audioStorageRef = ref(storage, `testimonies/${user.uid}/${audioFileName}`);
+        await uploadBytes(audioStorageRef, audioFile);
+        audioUrl = await getDownloadURL(audioStorageRef);
+      }
+
+      // Prepare testimony data
       const testimonyData = {
         userId: user.uid,
         userPhone: user.phoneNumber || '',
@@ -250,24 +272,23 @@ const getLocationWithPlaceName = () => {
         content: description || '',
         type: postType,
         mediaUrl: mediaUrl || '',
+        audioUrl: audioUrl || '',        // new field for additional audio
         fileName: fileName || '',
         status: 'pending',
-        // DETAILED LOCATION FIELD
         location: locationData ? {
           latitude: locationData.latitude,
           longitude: locationData.longitude,
           accuracy: locationData.accuracy,
           placeName: locationData.placeName,
-          detailedAddress: locationData.detailedAddress, // Store detailed address
+          detailedAddress: locationData.detailedAddress,
           timestamp: locationData.timestamp
         } : null,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
       };
 
-      console.log('📝 Saving testimony with location:', testimonyData);
+      console.log('📝 Saving testimony with location and audio:', testimonyData);
 
-      // Save to Firestore
       const docRef = await addDoc(collection(db, 'testimonies'), testimonyData);
       
       console.log('✅ Testimony saved with ID:', docRef.id);
@@ -279,10 +300,10 @@ const getLocationWithPlaceName = () => {
       setDescription('');
       setFile(null);
       setFilePreview('');
+      setAudioFile(null);
       setLocation(null);
       setLocationError('');
       
-      // Redirect after 2 seconds
       setTimeout(() => {
         router.push('/dashboard');
       }, 2000);
@@ -295,18 +316,7 @@ const getLocationWithPlaceName = () => {
     }
   };
 
-  // 5. MANUALLY REQUEST LOCATION
-  const handleRequestLocation = async () => {
-    try {
-      const loc = await getLocationWithPlaceName();
-      alert(`Location captured: ${loc.placeName}`);
-      setLocation(loc);
-    } catch (error) {
-      // Error already shown
-    }
-  };
-
-  // 6. SHOW LOADING
+  // 7. SHOW LOADING
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -315,7 +325,7 @@ const getLocationWithPlaceName = () => {
     );
   }
 
-  // 7. MAIN FORM UI
+  // 8. MAIN FORM UI
   return (
     <div className="min-h-screen bg-gray-50 p-4 md:p-8">
       <div className="max-w-4xl mx-auto">
@@ -357,8 +367,8 @@ const getLocationWithPlaceName = () => {
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 {[
                   { type: 'text', label: '📝 Text', desc: 'Write your story' },
-                  { type: 'image', label: '🖼️ Image', desc: 'Upload an image' },
-                  { type: 'audio', label: '🎤 Audio', desc: 'Record audio' },
+                  { type: 'image', label: '🖼️ Image', desc: 'Upload an image (can add audio)' },
+                  { type: 'audio', label: '🎤 Audio', desc: 'Upload audio' },
                   { type: 'video', label: '🎥 Video', desc: 'Upload video' },
                 ].map((item) => (
                   <button
@@ -368,6 +378,7 @@ const getLocationWithPlaceName = () => {
                       setPostType(item.type);
                       setFile(null);
                       setFilePreview('');
+                      setAudioFile(null); // Clear audio when switching types
                     }}
                     className={`p-4 border-2 rounded-lg text-center transition ${postType === item.type ? 'border-blue-500 bg-blue-50' : 'border-gray-200 hover:border-gray-300'}`}
                   >
@@ -468,11 +479,11 @@ const getLocationWithPlaceName = () => {
               />
             </div>
 
-            {/* FILE UPLOAD (for non-text types) */}
+            {/* MAIN FILE UPLOAD (for non-text types) */}
             {postType !== 'text' && (
               <div className="mb-6">
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Upload {postType}
+                  Upload {postType === 'image' ? 'Image' : postType === 'audio' ? 'Audio' : 'Video'}
                 </label>
                 <div className="space-y-4">
                   <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
@@ -499,14 +510,14 @@ const getLocationWithPlaceName = () => {
                         Click to choose a file
                       </div>
                       <div className="text-sm text-gray-500 mt-1">
-                        {postType === 'image' ? 'JPG, PNG, GIF (max 10MB)' :
-                         postType === 'audio' ? 'MP3, WAV, AAC (max 10MB)' :
-                         'MP4, MOV, AVI (max 10MB)'}
+                        {postType === 'image' ? 'JPG, PNG, GIF (max 500MB)' :
+                         postType === 'audio' ? 'MP3, WAV, AAC (max 500MB)' :
+                         'MP4, MOV, AVI (max 500MB)'}
                       </div>
                     </label>
                   </div>
 
-                  {/* FILE INFO & PREVIEW */}
+                  {/* MAIN FILE INFO & PREVIEW */}
                   {file && (
                     <div className="border border-gray-200 rounded-lg p-4">
                       <div className="flex items-center justify-between mb-2">
@@ -537,6 +548,58 @@ const getLocationWithPlaceName = () => {
                           />
                         </div>
                       )}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* ADDITIONAL AUDIO UPLOAD FOR IMAGE POSTS */}
+            {postType === 'image' && (
+              <div className="mb-6 p-4 bg-purple-50 rounded-lg border border-purple-200">
+                <h3 className="text-lg font-medium text-gray-700 mb-3">🎤 Add Audio Narration (Optional)</h3>
+                <p className="text-sm text-gray-600 mb-4">
+                  You can also upload an audio file to accompany your image. This will be played alongside the image.
+                </p>
+                
+                <div className="space-y-4">
+                  <div className="border-2 border-dashed border-purple-300 rounded-lg p-6 text-center">
+                    <input
+                      type="file"
+                      onChange={handleAudioFileChange}
+                      accept="audio/*"
+                      className="hidden"
+                      id="audio-upload"
+                    />
+                    <label
+                      htmlFor="audio-upload"
+                      className="cursor-pointer block"
+                    >
+                      <div className="text-4xl mb-2">🎤</div>
+                      <div className="text-purple-600 font-medium">
+                        Click to choose an audio file
+                      </div>
+                      <div className="text-sm text-gray-500 mt-1">
+                        MP3, WAV, AAC (max 500MB)
+                      </div>
+                    </label>
+                  </div>
+
+                  {audioFile && (
+                    <div className="border border-gray-200 rounded-lg p-4">
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="font-medium">Selected audio:</div>
+                        <button
+                          type="button"
+                          onClick={() => setAudioFile(null)}
+                          className="text-red-600 text-sm"
+                        >
+                          Remove
+                        </button>
+                      </div>
+                      <div className="text-sm text-gray-600">
+                        🎵 {audioFile.name} ({(audioFile.size / 1024 / 1024).toFixed(2)} MB)
+                      </div>
                     </div>
                   )}
                 </div>
@@ -582,7 +645,8 @@ const getLocationWithPlaceName = () => {
                     <li>Your <strong>location (place name)</strong> will be automatically captured when you submit.</li>
                     <li>All testimonies require <strong>admin approval</strong> before appearing publicly.</li>
                     <li>You can edit or delete your testimony only while it's <strong>pending approval</strong>.</li>
-                    <li>Ensure your content follows community guidelines.</li>
+                    <li>For image posts, you can optionally add an audio narration.</li>
+                    <li>Max file size per file: 500MB.</li>
                   </ul>
                 </div>
               </div>
@@ -596,7 +660,7 @@ const getLocationWithPlaceName = () => {
             <Link href="/" className="hover:text-blue-600">Home</Link>
             <Link href="/dashboard" className="hover:text-blue-600">Dashboard</Link>
             <Link href="/add-testimony" className="hover:text-blue-600">Add Testimony</Link>
-            <Link href="/add-coordinates" className="hover:text-blue-600">Add Coordinates</Link>
+            <Link href="/map-land-here" className="hover:text-blue-600">Map Land Here</Link>
           </div>
           <p>© 2026 Testimony App. All rights reserved.</p>
           <p className="mt-2">Share Your Story</p>

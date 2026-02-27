@@ -4,7 +4,7 @@
 import { useState } from 'react';
 import { FaDownload } from 'react-icons/fa';
 
-export default function MediaDisplay({ mediaUrl, title }) {
+export default function MediaDisplay({ mediaUrl, audioUrl, title }) {
   const [imageError, setImageError] = useState(false);
   const [imageLoaded, setImageLoaded] = useState(false);
 
@@ -44,43 +44,68 @@ export default function MediaDisplay({ mediaUrl, title }) {
     );
   }
 
-  // Show the image
+  // Show both image and audio if audioUrl exists
   return (
-    <div className="text-center">
-      <div className="mb-4">
-        <img
-          src={mediaUrl}
-          alt={title || 'Testimony media'}
-          className={`max-w-full h-auto max-h-[500px] mx-auto rounded-lg shadow-lg ${
-            imageLoaded ? 'opacity-100' : 'opacity-0'
-          } transition-opacity duration-300`}
-          onError={handleImageError}
-          onLoad={handleImageLoad}
-        />
-        {!imageLoaded && !imageError && (
-          <div className="h-64 flex items-center justify-center">
-            <div className="text-gray-400">Loading image...</div>
+    <div className="space-y-6">
+      {/* Image */}
+      <div className="text-center">
+        <div className="mb-4">
+          <img
+            src={mediaUrl}
+            alt={title || 'Testimony media'}
+            className={`max-w-full h-auto max-h-[500px] mx-auto rounded-lg shadow-lg ${
+              imageLoaded ? 'opacity-100' : 'opacity-0'
+            } transition-opacity duration-300`}
+            onError={handleImageError}
+            onLoad={handleImageLoad}
+          />
+          {!imageLoaded && !imageError && (
+            <div className="h-64 flex items-center justify-center">
+              <div className="text-gray-400">Loading image...</div>
+            </div>
+          )}
+        </div>
+        
+        <div className="flex flex-wrap justify-center gap-4 mt-6">
+          <a
+            href={mediaUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600"
+          >
+            🔗 Open Full Size
+          </a>
+          <a
+            href={mediaUrl}
+            download
+            className="inline-flex items-center gap-2 px-4 py-2 border border-blue-500 text-blue-600 rounded-lg hover:bg-blue-50"
+          >
+            <FaDownload /> Download Image
+          </a>
+        </div>
+      </div>
+
+      {/* Audio player if audioUrl exists */}
+      {audioUrl && (
+        <div className="mt-6 p-6 bg-gray-50 rounded-lg border border-gray-200">
+          <h3 className="text-lg font-medium mb-3">🎤 Audio Narration</h3>
+          <audio controls className="w-full">
+            <source src={audioUrl} type="audio/mpeg" />
+            <source src={audioUrl} type="audio/wav" />
+            <source src={audioUrl} type="audio/ogg" />
+            Your browser does not support the audio element.
+          </audio>
+          <div className="flex justify-end mt-2">
+            <a
+              href={audioUrl}
+              download
+              className="inline-flex items-center gap-1 text-sm text-purple-600 hover:text-purple-800"
+            >
+              <FaDownload /> Download Audio
+            </a>
           </div>
-        )}
-      </div>
-      
-      <div className="flex flex-wrap justify-center gap-4 mt-6">
-        <a
-          href={mediaUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="inline-flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600"
-        >
-          🔗 Open Full Size
-        </a>
-        <a
-          href={mediaUrl}
-          download
-          className="inline-flex items-center gap-2 px-4 py-2 border border-blue-500 text-blue-600 rounded-lg hover:bg-blue-50"
-        >
-          <FaDownload /> Download File
-        </a>
-      </div>
+        </div>
+      )}
     </div>
   );
 }

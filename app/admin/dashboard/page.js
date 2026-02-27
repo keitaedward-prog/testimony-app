@@ -2,6 +2,8 @@
 "use client";
 
 import AuditLogs from './components/AuditLogs';
+import LandMappingManagement from './components/LandMappingManagement';
+import ElearningManagement from './components/ElearningManagement';
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { auth, db } from '@/lib/firebase';
@@ -187,6 +189,8 @@ export default function AdminDashboardPage() {
             {activeTab === 'users' && <UsersManagement />}
             {activeTab === 'reports' && <ReportsDashboard />}
             {activeTab === 'audit' && <AuditLogs />}
+            {activeTab === 'landmapping' && <LandMappingManagement />}
+            {activeTab === 'elearning' && <ElearningManagement />}
             {activeTab === 'settings' && (
               <div>
                 <h2 className="text-2xl font-bold mb-6">Admin Settings</h2>

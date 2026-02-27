@@ -1,4 +1,4 @@
-// app/post/[id]/page.js - FIXED VERSION WITH FOUR CORNERS DISPLAY
+// app/post/[id]/page.js - FIXED VERSION WITH FOUR CORNERS DISPLAY AND AUDIO NARRATION SUPPORT
 "use client";
 
 import { useState, useEffect } from 'react';
@@ -83,10 +83,11 @@ export default function PostDetailsPage() {
           userName: data.userName || `User ${data.phoneNumber || 'Anonymous'}`,
           phoneNumber: data.phoneNumber || '',
           mediaUrl: data.mediaUrl || '',
+          audioUrl: data.audioUrl || '', // <-- new field for additional audio
           mediaType: data.mediaType || '',
           location: data.location || null,
           coordinates: data.coordinates || null,
-          fourCorners: data.fourCorners || null, // <-- NEW: four corners array
+          fourCorners: data.fourCorners || null,
           userId: data.userId || '',
           userPhone: data.userPhone || '',
           createdAt: data.createdAt ? data.createdAt.toDate().toISOString() : new Date().toISOString(),
@@ -100,7 +101,8 @@ export default function PostDetailsPage() {
           currentUserId,
           currentUserPhone,
           currentAuthUser: currentUser?.uid,
-          hasFourCorners: !!fetchedPost.fourCorners
+          hasFourCorners: !!fetchedPost.fourCorners,
+          hasAudioUrl: !!fetchedPost.audioUrl
         });
         
         // CHECK AUTHORIZATION: Client-side version
@@ -374,6 +376,18 @@ export default function PostDetailsPage() {
             ) : (
               <div className="mb-8 p-4 bg-gray-50 rounded-xl text-center">
                 <p className="text-gray-500">No media attached to this post</p>
+              </div>
+            )}
+
+            {/* Additional Audio Narration (for image posts that include audio) */}
+            {post.audioUrl && (
+              <div className="mb-8">
+                <h3 className="text-xl font-semibold mb-4 text-gray-800">Audio Narration</h3>
+                <div className="rounded-xl overflow-hidden border border-gray-200 bg-gray-50 p-4">
+                  <audio controls className="w-full" src={post.audioUrl}>
+                    Your browser does not support the audio element.
+                  </audio>
+                </div>
               </div>
             )}
             

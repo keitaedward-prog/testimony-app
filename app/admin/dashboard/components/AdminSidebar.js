@@ -1,12 +1,14 @@
-// app/admin/dashboard/components/AdminSidebar.js - UPDATED (REMOVED QUICK ACTIONS)
+// app/admin/dashboard/components/AdminSidebar.js - UPDATED (NEW MENU ITEMS)
 export default function AdminSidebar({ activeTab, setActiveTab }) {
   const menuItems = [
     { id: 'overview', label: '📊 Overview', icon: '📊' },
-    { id: 'posts', label: '📝 Manage Posts', icon: '📝' },
+    { id: 'posts', label: '📝 Manage Posts (Testimonies)', icon: '📝' },
+    { id: 'landmapping', label: '🗺️ Land Mapping', icon: '🗺️' },
+    { id: 'elearning', label: '📚 E‑Learning', icon: '📚' },
     { id: 'users', label: '👥 Manage Users', icon: '👥' },
     { id: 'reports', label: '📈 Reports', icon: '📈' },
-    { id: 'settings', label: '⚙️ Settings', icon: '⚙️' },
     { id: 'audit', label: '📋 Audit Logs', icon: '📋' },
+    { id: 'settings', label: '⚙️ Settings', icon: '⚙️' },
   ];
 
   return (

@@ -1,4 +1,4 @@
-// app/add-coordinates/page.js - UPDATED WITH FOUR CORNERS FEATURE + AUTO-POPULATE ON SUBMIT
+// app/map-land-here/page.js - UPDATED WITH FOUR CORNERS FEATURE + AUTO-POPULATE ON SUBMIT
 "use client";
 
 import { useState, useEffect } from 'react';
@@ -263,13 +263,13 @@ export default function AddCoordinatesPage() {
     for (let i = 0; i < cornersArray.length; i++) {
       const corner = cornersArray[i];
       if (!corner.lat || !corner.lng) {
-        setError(`Corner ${i+1} coordinates are required. Please fill all four corners.`);
+        setError(`Map corner ${i+1} coordinates are required. Please fill all four corners.`);
         return false;
       }
       const latCorner = parseFloat(corner.lat);
       const lngCorner = parseFloat(corner.lng);
       if (isNaN(latCorner) || isNaN(lngCorner) || latCorner < -90 || latCorner > 90 || lngCorner < -180 || lngCorner > 180) {
-        setError(`Corner ${i+1} coordinates are invalid.`);
+        setError(`Map corner ${i+1} coordinates are invalid.`);
         return false;
       }
     }
@@ -280,7 +280,7 @@ export default function AddCoordinatesPage() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!user) {
-      setError('You must be logged in to post coordinates');
+      setError('You must be logged in to map land');
       return;
     }
 
@@ -335,7 +335,7 @@ export default function AddCoordinatesPage() {
           latitude: parseFloat(corner.lat),
           longitude: parseFloat(corner.lng)
         })),
-        status: 'pending',
+        status: 'approved', // Changed from 'pending' to 'approved'
         userId: user.uid,
         userPhone: user.phoneNumber || '',
         userName: `User ${user.phoneNumber || 'Anonymous'}`,
@@ -350,7 +350,7 @@ export default function AddCoordinatesPage() {
       
       console.log('✅ Coordinate post saved with ID:', docRef.id);
       
-      setSuccess(`Coordinates posted successfully! Status: Pending admin approval.`);
+      setSuccess(`Land mapped successfully!`); // Updated success message
       
       // Reset form
       setTitle('');
@@ -368,7 +368,7 @@ export default function AddCoordinatesPage() {
 
     } catch (err) {
       console.error('❌ Error posting coordinates:', err);
-      setError(`Failed to post coordinates: ${err.message}`);
+      setError(`Failed to map land: ${err.message}`);
     } finally {
       setSubmitting(false);
     }
@@ -390,7 +390,7 @@ export default function AddCoordinatesPage() {
         <header className="mb-8">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-3xl font-bold text-gray-900">Add New Coordinates</h1>
+              <h1 className="text-3xl font-bold text-gray-900">Map Land Here</h1> {/* Updated title */}
               <p className="text-gray-600 mt-2">
                 Share a location or define a four‑corner land area. All fields are required.
               </p>
@@ -564,7 +564,7 @@ export default function AddCoordinatesPage() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {[0, 1, 2, 3].map((index) => (
                   <div key={index} className="p-4 bg-white rounded-lg border border-purple-100">
-                    <h3 className="font-bold text-purple-800 mb-3">Corner {index + 1}</h3>
+                    <h3 className="font-bold text-purple-800 mb-3">Map corner {index + 1}</h3> {/* Updated label */}
                     
                     <div className="space-y-3">
                       <div>
@@ -628,10 +628,10 @@ export default function AddCoordinatesPage() {
                       <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                       <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
                     </svg>
-                    Posting Coordinates...
+                    Mapping Land...
                   </span>
                 ) : (
-                  'Post Coordinates'
+                  'Map Land'
                 )}
               </button>
             </div>
@@ -641,13 +641,11 @@ export default function AddCoordinatesPage() {
               <div className="flex items-start">
                 <div className="text-blue-500 mr-3">ℹ️</div>
                 <div className="text-sm text-gray-600">
-                  <p className="font-medium mb-1">About Coordinate Posts:</p>
+                  <p className="font-medium mb-1">About Land Mapping:</p>
                   <ul className="list-disc pl-5 space-y-1">
                     <li><strong>Main location:</strong> You can set it via map, "Get Current Location", or manually.</li>
                     <li><strong>Four corners:</strong> Required. Use the buttons to capture your current location at each corner, or enter coordinates manually.</li>
-                    <li>All coordinate posts require <strong>admin approval</strong> before appearing publicly.</li>
-                    <li>Once approved, they'll appear in the <strong>"Coordinates Only"</strong> tab on the homepage.</li>
-                    <li>Admins can <strong>delete but not edit</strong> coordinate posts.</li>
+                    <li>Land mapping posts are <strong>automatically approved</strong> and will appear immediately on the homepage.</li>
                   </ul>
                 </div>
               </div>
@@ -661,7 +659,7 @@ export default function AddCoordinatesPage() {
             <Link href="/" className="hover:text-blue-600">Home</Link>
             <Link href="/dashboard" className="hover:text-blue-600">Dashboard</Link>
             <Link href="/add-testimony" className="hover:text-blue-600">Add Testimony</Link>
-            <Link href="/add-coordinates" className="hover:text-blue-600">Add Coordinates</Link>
+            <Link href="/map-land-here" className="hover:text-blue-600">Map Land Here</Link> {/* Updated link */}
           </div>
           <p>© 2026 Testimony App. All rights reserved.</p>
           <p className="mt-2">Share Location Coordinates</p>
