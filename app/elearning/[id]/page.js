@@ -1,6 +1,5 @@
 // app/elearning/[id]/page.js
-import { db } from '@/lib/firebase';
-import { doc, getDoc } from 'firebase/firestore';
+import { adminDb } from '@/lib/firebaseAdmin';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { FaDownload } from 'react-icons/fa';
@@ -9,13 +8,14 @@ export const dynamic = 'force-dynamic';
 
 async function getElearningPost(id) {
   try {
-    const docRef = doc(db, 'eLearning', id);
-    const docSnap = await getDoc(docRef);
-    if (!docSnap.exists()) return null;
+    const docRef = adminDb.collection('eLearning').doc(id);
+    const docSnap = await docRef.get();
+    if (!docSnap.exists) return null;
     const data = docSnap.data();
     return {
       id: docSnap.id,
       ...data,
+      // Convert Firestore timestamps to ISO strings for serialization
       createdAt: data.createdAt?.toDate?.().toISOString() || null,
     };
   } catch (error) {
