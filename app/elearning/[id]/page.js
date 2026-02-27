@@ -8,6 +8,7 @@ export const dynamic = 'force-dynamic';
 
 async function getElearningPost(id) {
   try {
+    // id is now a proper string after awaiting params
     const docRef = adminDb.collection('eLearning').doc(id);
     const docSnap = await docRef.get();
     if (!docSnap.exists) return null;
@@ -15,7 +16,6 @@ async function getElearningPost(id) {
     return {
       id: docSnap.id,
       ...data,
-      // Convert Firestore timestamps to ISO strings for serialization
       createdAt: data.createdAt?.toDate?.().toISOString() || null,
     };
   } catch (error) {
@@ -25,7 +25,9 @@ async function getElearningPost(id) {
 }
 
 export default async function ElearningDetailPage({ params }) {
-  const post = await getElearningPost(params.id);
+  // ✅ Await the params Promise before using it
+  const { id } = await params;
+  const post = await getElearningPost(id);
   if (!post) notFound();
 
   return (
