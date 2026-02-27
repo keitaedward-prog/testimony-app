@@ -393,10 +393,10 @@ export default function DashboardPage() {
                 ➕ Add New Testimony
               </Link>
               <Link
-                href="/add-coordinates"
+                href="/map-land-here"
                 className="block w-full p-4 text-center bg-green-600 text-white rounded-lg hover:bg-green-700 transition"
               >
-                📍 Add New Coordinates
+                🗺️ Map Land Here
               </Link>
             </div>
           </div>
@@ -720,13 +720,13 @@ export default function DashboardPage() {
         </div>
       </main>
 
-      {/* FOOTER - YEAR UPDATED TO 2026 */}
+      {/* FOOTER */}
       <footer className="mt-12 pt-8 border-t text-center text-gray-600 text-sm">
         <div className="flex justify-center space-x-6 mb-4">
           <Link href="/" className="hover:text-blue-600">Home</Link>
           <Link href="/dashboard" className="hover:text-blue-600">Dashboard</Link>
           <Link href="/add-testimony" className="hover:text-blue-600">Add Testimony</Link>
-          <Link href="/add-coordinates" className="hover:text-blue-600">Add Coordinates</Link>
+          <Link href="/map-land-here" className="hover:text-blue-600">Map Land Here</Link>
         </div>
         <p>© 2026 Testimony App. All rights reserved. - Manage Your Content</p>
       </footer>
