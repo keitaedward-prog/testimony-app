@@ -1,0 +1,118 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return isSignedIn() &&
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid));
+    }
+
+    function isOwnerOf(resourceData) {
+      return isSignedIn() && (
+        resourceData.userId == request.auth.uid ||
+        resourceData.userPhone == request.auth.token.phone_number
+      );
+    }
+
+    // ---------------------------
+    // 1) Testimonies
+    // ---------------------------
+    match /testimonies/{docId} {
+
+      // Public can read APPROVED posts
+      allow read: if resource.data.status == "approved";
+
+      // Owners can read their own posts (any status)
+      allow read: if isOwnerOf(resource.data);
+
+      // Admins can read everything
+      allow read: if isAdmin();
+
+      // Create: signed-in users, with type‑specific status
+      allow create: if isSignedIn()
+        && request.resource.data.userId == request.auth.uid
+        && (
+          // Coordinates can be created with status 'approved'
+          (request.resource.data.type == "coordinates" && request.resource.data.status == "approved") ||
+          // All other types must be 'pending'
+          (request.resource.data.type != "coordinates" && request.resource.data.status == "pending")
+        );
+
+      // Update: Owners can only update their own PENDING, NON-COORDINATE posts
+      // and only limited fields
+      allow update: if isOwnerOf(resource.data)
+        && resource.data.status == "pending"
+        && resource.data.type != "coordinates"
+        && request.resource.data.diff(resource.data).affectedKeys()
+            .hasOnly(["title", "description", "content", "updatedAt"]);
+
+      // Delete: Owners can delete only their own PENDING posts
+      allow delete: if isOwnerOf(resource.data)
+        && resource.data.status == "pending";
+
+      // Admin update: can update any post.
+      // For coordinate posts, only allow updating status/updatedAt/rejectionReason.
+      allow update: if isAdmin() && (
+        resource.data.type != "coordinates" ||
+        (resource.data.type == "coordinates" &&
+         request.resource.data.diff(resource.data).affectedKeys()
+            .hasOnly(["status", "updatedAt", "rejectionReason"]))
+      );
+
+      // Admin delete: can delete anything
+      allow delete: if isAdmin();
+    }
+
+    // ---------------------------
+    // 2) Admins collection
+    // ---------------------------
+    match /admins/{adminId} {
+      // Only admins can read/write admins collection (prevents privilege escalation)
+      allow read, write: if isAdmin();
+    }
+
+    // ---------------------------
+    // 3) Users collection
+    // ---------------------------
+    match /users/{userId} {
+
+      // A user can read their own doc; admins can read all
+      allow read: if isSignedIn() && (request.auth.uid == userId || isAdmin());
+
+      // User can create their own profile doc ONLY
+      allow create: if isSignedIn()
+        && request.auth.uid == userId;
+
+      // User can update ONLY their own profile (adjust allowed fields as needed)
+      allow update: if isSignedIn()
+        && request.auth.uid == userId;
+
+      // Admin can write any user doc (if you want admins to manage users)
+      allow write: if isAdmin();
+
+      // Optional: disallow deletes from client
+      allow delete: if false;
+    }
+
+    // ---------------------------
+    // 4) Audit Logs collection
+    // ---------------------------
+    match /auditLogs/{logId} {
+      allow create: if isAdmin();
+      allow read: if isAdmin();
+      allow update, delete: if false;
+    }
+
+    // ---------------------------
+    // 5) eLearning collection
+    // ---------------------------
+    match /eLearning/{docId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+  }
+}

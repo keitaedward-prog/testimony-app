@@ -15,6 +15,7 @@ import {
 } from 'firebase/firestore';
 import Pagination from '@/app/components/Pagination';
 import { logAdminAction } from '@/lib/auditLogger';
+import Link from 'next/link';  // <-- added for navigation
 
 export default function PostsManagement() {
   const [allPosts, setAllPosts] = useState([]);
@@ -487,6 +488,21 @@ export default function PostsManagement() {
                       <div><span className="text-gray-500">User ID:</span> <span className="font-mono ml-1">{post.userId?.substring(0, 10)}...</span></div>
                       <div><span className="text-gray-500">Post ID:</span> <span className="font-mono ml-1">{post.id.substring(0, 10)}...</span></div>
                     </div>
+                  </div>
+
+                  {/* User Info & View Details (added) */}
+                  <div className="mt-4 pt-4 border-t border-gray-700 flex justify-between items-center">
+                    <div className="text-sm text-gray-300">
+                      {post.userName && !post.userName.startsWith('User ') 
+                        ? `${post.userName} (${post.userPhone || 'No phone'})`
+                        : `User ${post.userPhone || 'Unknown'}`}
+                    </div>
+                    <Link
+                      href={`/post/${post.id}?admin=true`}
+                      className="text-blue-400 hover:text-blue-300 text-sm font-medium"
+                    >
+                      View Details →
+                    </Link>
                   </div>
 
                   {/* ACTION BUTTONS */}

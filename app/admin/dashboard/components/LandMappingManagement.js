@@ -1,3 +1,4 @@
+// app/admin/dashboard/components/LandMappingManagement.js
 "use client";
 
 import { useState, useEffect } from 'react';
@@ -5,6 +6,7 @@ import { db } from '@/lib/firebase';
 import { collection, query, where, getDocs, deleteDoc, doc, orderBy } from 'firebase/firestore';
 import { logAdminAction } from '@/lib/auditLogger';
 import Pagination from '@/app/components/Pagination';
+import Link from 'next/link';  // <-- added
 
 const PAGE_SIZE = 10;
 
@@ -28,7 +30,9 @@ export default function LandMappingManagement() {
       filtered = posts.filter(p => 
         p.title?.toLowerCase().includes(term) ||
         p.description?.toLowerCase().includes(term) ||
-        p.coordinates?.placeName?.toLowerCase().includes(term)
+        p.coordinates?.placeName?.toLowerCase().includes(term) ||
+        p.userName?.toLowerCase().includes(term) ||
+        p.userPhone?.toLowerCase().includes(term)
       );
     }
     setFilteredPosts(filtered);
@@ -45,9 +49,17 @@ export default function LandMappingManagement() {
   const fetchPosts = async () => {
     setLoading(true);
     try {
-      const q = query(collection(db, 'testimonies'), where('type', '==', 'coordinates'), orderBy('createdAt', 'desc'));
+      const q = query(
+        collection(db, 'testimonies'),
+        where('type', '==', 'coordinates'),
+        orderBy('createdAt', 'desc')
+      );
       const snapshot = await getDocs(q);
-      const fetched = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+      const fetched = snapshot.docs.map(d => ({
+        id: d.id,
+        ...d.data(),
+        createdAt: d.data().createdAt?.toDate?.().toISOString() || null,
+      }));
       setPosts(fetched);
     } catch (error) {
       console.error('Error fetching land mapping posts:', error);
@@ -74,6 +86,13 @@ export default function LandMappingManagement() {
     return d.toLocaleDateString();
   };
 
+  const getUserDisplay = (post) => {
+    if (post.userName && !post.userName.startsWith('User ')) {
+      return `${post.userName} (${post.userPhone || 'No phone'})`;
+    }
+    return `User ${post.userPhone || 'Unknown'}`;
+  };
+
   if (loading) return <div className="text-center py-12">Loading...</div>;
 
   return (
@@ -81,19 +100,40 @@ export default function LandMappingManagement() {
       <h2 className="text-2xl font-bold mb-6">Land Mapping Posts</h2>
 
       <div className="mb-6">
-        <input type="text" placeholder="Search by title, description, place name..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full p-3 bg-gray-800 border border-gray-700 rounded" />
+        <input
+          type="text"
+          placeholder="Search by title, description, place name, or user..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          className="w-full p-3 bg-gray-800 border border-gray-700 rounded"
+        />
       </div>
 
       <div className="space-y-4">
         {displayedPosts.map(post => (
           <div key={post.id} className="bg-gray-800 p-4 rounded-lg border border-gray-700">
             <div className="flex justify-between items-start">
-              <div>
+              <div className="flex-1">
                 <h3 className="text-xl font-bold">{post.title || 'Untitled Coordinates'}</h3>
                 <p className="text-sm text-gray-400">{formatDate(post.createdAt)}</p>
-                {post.coordinates?.placeName && <p className="text-green-400">📍 {post.coordinates.placeName}</p>}
+                <p className="text-sm text-blue-400 mt-1">
+                  Posted by: {getUserDisplay(post)}
+                </p>
+                {post.coordinates?.placeName && (
+                  <p className="text-green-400 mt-1">📍 {post.coordinates.placeName}</p>
+                )}
               </div>
-              <button onClick={() => handleDelete(post)} className="px-3 py-1 bg-red-600 rounded">Delete</button>
+              <div className="flex items-center space-x-2">
+                <Link
+                  href={`/post/${post.id}?admin=true`}
+                  className="text-blue-400 hover:text-blue-300 text-sm mr-2"
+                >
+                  View Details →
+                </Link>
+                <button onClick={() => handleDelete(post)} className="px-3 py-1 bg-red-600 rounded">
+                  Delete
+                </button>
+              </div>
             </div>
             <p className="mt-2 text-gray-300">{post.description || 'No description'}</p>
             {post.coordinates && (

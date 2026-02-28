@@ -1,4 +1,4 @@
-// app/admin/dashboard/components/ElearningManagement.js
+//app/admin/dashboard/components/ElearningManagement.js
 "use client";
 
 import { useState, useEffect } from 'react';
@@ -6,12 +6,13 @@ import { db, storage } from '@/lib/firebase';
 import { 
   collection, getDocs, addDoc, updateDoc, deleteDoc, doc, query, orderBy, limit, startAfter 
 } from 'firebase/firestore';
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
 import { auth } from '@/lib/firebase';
 import { logAdminAction } from '@/lib/auditLogger';
 import Pagination from '@/app/components/Pagination';
 
 const PAGE_SIZE = 10;
+const MAX_FILE_SIZE = 500 * 1024 * 1024; // 500 MB
 
 export default function ElearningManagement() {
   const [posts, setPosts] = useState([]);
@@ -29,6 +30,8 @@ export default function ElearningManagement() {
   const [file, setFile] = useState(null);
   const [filePreview, setFilePreview] = useState('');
   const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [uploadTask, setUploadTask] = useState(null); // to allow cancel
 
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
@@ -60,6 +63,15 @@ export default function ElearningManagement() {
     setTotalPages(Math.ceil(filteredPosts.length / PAGE_SIZE));
   }, [filteredPosts, currentPage]);
 
+  // Cleanup on unmount or before new upload
+  useEffect(() => {
+    return () => {
+      if (uploadTask) {
+        uploadTask.cancel();
+      }
+    };
+  }, [uploadTask]);
+
   const fetchPosts = async (reset = false) => {
     setLoading(true);
     try {
@@ -88,7 +100,7 @@ export default function ElearningManagement() {
   const handleFileChange = (e) => {
     const selected = e.target.files[0];
     if (!selected) return;
-    if (selected.size > 500 * 1024 * 1024) { // 500MB
+    if (selected.size > MAX_FILE_SIZE) {
       alert('File too large (max 500MB)');
       return;
     }
@@ -102,6 +114,33 @@ export default function ElearningManagement() {
     }
   };
 
+  const uploadFile = (fileObj) => {
+    return new Promise((resolve, reject) => {
+      const storageRef = ref(storage, `eLearning/${Date.now()}_${fileObj.name}`);
+      const task = uploadBytesResumable(storageRef, fileObj);
+      setUploadTask(task);
+
+      task.on('state_changed',
+        (snapshot) => {
+          // Progress update
+          const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+          setUploadProgress(progress);
+        },
+        (error) => {
+          // Handle unsuccessful uploads
+          setUploadTask(null);
+          reject(error);
+        },
+        async () => {
+          // Handle successful uploads
+          const downloadURL = await getDownloadURL(task.snapshot.ref);
+          setUploadTask(null);
+          resolve(downloadURL);
+        }
+      );
+    });
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!title || !description) {
@@ -109,12 +148,12 @@ export default function ElearningManagement() {
       return;
     }
     setUploading(true);
+    setUploadProgress(0);
+
     try {
       let mediaUrl = '';
       if (file) {
-        const storageRef = ref(storage, `eLearning/${Date.now()}_${file.name}`);
-        await uploadBytes(storageRef, file);
-        mediaUrl = await getDownloadURL(storageRef);
+        mediaUrl = await uploadFile(file);
       }
 
       const postData = {
@@ -148,10 +187,27 @@ export default function ElearningManagement() {
       fetchPosts(true);
     } catch (error) {
       console.error('Error saving e-learning post:', error);
-      alert('Failed to save');
+      alert(`Failed to save: ${error.message}`);
     } finally {
       setUploading(false);
+      setUploadProgress(0);
+      setUploadTask(null);
     }
+  };
+
+  const handleCancel = () => {
+    if (uploadTask) {
+      uploadTask.cancel();
+    }
+    setShowForm(false);
+    setEditingPost(null);
+    setTitle('');
+    setDescription('');
+    setType('text');
+    setFile(null);
+    setFilePreview('');
+    setUploading(false);
+    setUploadProgress(0);
   };
 
   const handleDelete = async (post) => {
@@ -219,23 +275,48 @@ export default function ElearningManagement() {
           {type !== 'text' && (
             <div className="mb-4">
               <label className="block mb-2">Upload File</label>
-              <input 
-                type="file" 
-                onChange={handleFileChange} 
+              <input
+                type="file"
+                onChange={handleFileChange}
                 accept={
                   type === 'image' ? 'image/*' :
                   type === 'audio' ? 'audio/*' :
                   type === 'video' ? 'video/*' :
                   '.pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.txt'
-                } 
-                className="w-full p-2 bg-gray-700 rounded" 
+                }
+                className="w-full p-2 bg-gray-700 rounded"
+                disabled={uploading}
               />
               {filePreview && <img src={filePreview} alt="Preview" className="mt-2 max-h-48 rounded" />}
+              {uploading && (
+                <div className="mt-4">
+                  <div className="w-full bg-gray-600 h-4 rounded overflow-hidden">
+                    <div
+                      className="bg-green-500 h-full transition-all duration-300"
+                      style={{ width: `${uploadProgress}%` }}
+                    ></div>
+                  </div>
+                  <p className="text-sm text-gray-300 mt-1">Uploading: {Math.round(uploadProgress)}%</p>
+                </div>
+              )}
             </div>
           )}
           <div className="flex space-x-4">
-            <button type="submit" disabled={uploading} className="px-6 py-2 bg-green-600 text-white rounded">{uploading ? 'Saving...' : 'Save'}</button>
-            <button type="button" onClick={() => setShowForm(false)} className="px-6 py-2 bg-gray-600 text-white rounded">Cancel</button>
+            <button
+              type="submit"
+              disabled={uploading || (type !== 'text' && !file)}
+              className="px-6 py-2 bg-green-600 text-white rounded disabled:opacity-50 flex-1"
+            >
+              {uploading ? `Uploading ${Math.round(uploadProgress)}%` : (editingPost ? 'Update' : 'Save')}
+            </button>
+            <button
+              type="button"
+              onClick={handleCancel}
+              className="px-6 py-2 bg-gray-600 text-white rounded"
+              disabled={uploading}
+            >
+              Cancel
+            </button>
           </div>
         </form>
       )}
@@ -251,6 +332,11 @@ export default function ElearningManagement() {
               <div>
                 <h3 className="text-xl font-bold">{post.title}</h3>
                 <p className="text-sm text-gray-400">{formatDate(post.createdAt)}</p>
+                {post.type !== 'text' && post.mediaUrl && (
+                  <a href={post.mediaUrl} target="_blank" rel="noopener noreferrer" className="text-blue-400 text-sm hover:underline inline-block mt-1">
+                    View {post.type} →
+                  </a>
+                )}
               </div>
               <div className="flex space-x-2">
                 <button onClick={() => handleEdit(post)} className="px-3 py-1 bg-blue-600 rounded">Edit</button>

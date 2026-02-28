@@ -1,4 +1,4 @@
-// app/post/[id]/page.js - FIXED VERSION WITH FOUR CORNERS DISPLAY AND AUDIO NARRATION SUPPORT
+// app/post/[id]/page.js - FIXED VERSION WITH ADMIN ACCESS AND AUDIO DISPLAY
 "use client";
 
 import { useState, useEffect } from 'react';
@@ -31,23 +31,45 @@ export default function PostDetailsPage() {
   const [error, setError] = useState('');
   const [currentUser, setCurrentUser] = useState(null);
   const [authLoading, setAuthLoading] = useState(true);
+  const [isAdmin, setIsAdmin] = useState(false);
   
   const postId = params?.id;
   
-  // Get userId and userPhone from URL params (passed from dashboard)
   const currentUserId = searchParams?.get('userId') || null;
   const currentUserPhone = searchParams?.get('userPhone') || null;
   
-  // 1. Check authentication state
+  // Helper functions for back navigation
+  const getBackUrl = () => {
+    if (isAdmin) return '/admin/dashboard';
+    if (currentUser) return '/dashboard';
+    return '/';
+  };
+
+  const getBackText = () => {
+    if (isAdmin) return 'Back to Admin Dashboard';
+    if (currentUser) return 'Back to Dashboard';
+    return 'Back to Home';
+  };
+  
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
       setCurrentUser(user);
+      if (user) {
+        try {
+          const adminDoc = await getDoc(doc(db, 'admins', user.uid));
+          setIsAdmin(adminDoc.exists());
+        } catch (error) {
+          console.error('Error checking admin status:', error);
+          setIsAdmin(false);
+        }
+      } else {
+        setIsAdmin(false);
+      }
       setAuthLoading(false);
     });
     return () => unsubscribe();
   }, []);
   
-  // 2. Fetch post data when we have authentication state
   useEffect(() => {
     if (authLoading) return;
     
@@ -83,7 +105,7 @@ export default function PostDetailsPage() {
           userName: data.userName || `User ${data.phoneNumber || 'Anonymous'}`,
           phoneNumber: data.phoneNumber || '',
           mediaUrl: data.mediaUrl || '',
-          audioUrl: data.audioUrl || '', // <-- new field for additional audio
+          audioUrl: data.audioUrl || '',
           mediaType: data.mediaType || '',
           location: data.location || null,
           coordinates: data.coordinates || null,
@@ -101,12 +123,10 @@ export default function PostDetailsPage() {
           currentUserId,
           currentUserPhone,
           currentAuthUser: currentUser?.uid,
-          hasFourCorners: !!fetchedPost.fourCorners,
-          hasAudioUrl: !!fetchedPost.audioUrl
+          isAdmin,
         });
         
-        // CHECK AUTHORIZATION: Client-side version
-        // 1. If post is approved, anyone can view it
+        // AUTHORIZATION CHECK
         if (fetchedPost.status === 'approved') {
           console.log('✅ Approved post - allowing public access');
           setPost(fetchedPost);
@@ -114,9 +134,14 @@ export default function PostDetailsPage() {
           return;
         }
         
-        // 2. Check if current user (from auth) owns this post
+        if (isAdmin) {
+          console.log('✅ Admin access - allowing view');
+          setPost(fetchedPost);
+          setLoading(false);
+          return;
+        }
+        
         if (currentUser) {
-          // Check by userId
           if (currentUser.uid && fetchedPost.userId === currentUser.uid) {
             console.log('✅ User owns this post (userId match from auth)');
             setPost(fetchedPost);
@@ -124,7 +149,6 @@ export default function PostDetailsPage() {
             return;
           }
           
-          // Check by phone (from auth)
           if (currentUser.phoneNumber) {
             const normalizedCurrent = normalizePhoneNumber(currentUser.phoneNumber);
             const postPhones = [
@@ -145,7 +169,6 @@ export default function PostDetailsPage() {
           }
         }
         
-        // 3. Check URL parameters (for users coming from dashboard)
         if (currentUserId && fetchedPost.userId === currentUserId) {
           console.log('✅ User owns this post (userId from URL params)');
           setPost(fetchedPost);
@@ -172,22 +195,7 @@ export default function PostDetailsPage() {
           }
         }
         
-        // 4. If we get here, user is not authorized
         console.log('❌ User not authorized to view this post');
-        console.log('Post requires:', { 
-          userId: fetchedPost.userId, 
-          userPhone: fetchedPost.userPhone,
-          phoneNumber: fetchedPost.phoneNumber
-        });
-        console.log('User has (auth):', { 
-          userId: currentUser?.uid, 
-          userPhone: currentUser?.phoneNumber 
-        });
-        console.log('User has (URL):', { 
-          userId: currentUserId, 
-          userPhone: currentUserPhone 
-        });
-        
         setError('You are not authorized to view this post');
         setLoading(false);
         
@@ -199,7 +207,7 @@ export default function PostDetailsPage() {
     }
     
     fetchPostData();
-  }, [postId, currentUserId, currentUserPhone, currentUser, authLoading]);
+  }, [postId, currentUserId, currentUserPhone, currentUser, authLoading, isAdmin]);
   
   function getLocationInfo(post) {
     if (!post) return null;
@@ -245,11 +253,11 @@ export default function PostDetailsPage() {
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50 p-4">
         <div className="max-w-4xl mx-auto">
           <Link 
-            href={currentUser ? "/dashboard" : "/"}
+            href={getBackUrl()}
             className="inline-flex items-center gap-2 text-blue-600 hover:text-blue-800 mb-6"
           >
             <FaArrowLeft /> 
-            {currentUser ? 'Back to Dashboard' : 'Back to Home'}
+            {getBackText()}
           </Link>
           
           <div className="bg-white rounded-2xl shadow-xl p-8 text-center">
@@ -259,14 +267,14 @@ export default function PostDetailsPage() {
             </h1>
             <p className="text-gray-600 mb-6">
               {error === 'You are not authorized to view this post' 
-                ? 'This post is pending approval and can only be viewed by the author.'
+                ? 'This post is pending approval and can only be viewed by the author or an admin.'
                 : 'The post you\'re looking for doesn\'t exist or you don\'t have permission to view it.'}
             </p>
             <Link
-              href={currentUser ? "/dashboard" : "/"}
+              href={getBackUrl()}
               className="px-6 py-3 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-lg hover:from-blue-600 hover:to-purple-700 transition shadow"
             >
-              ← {currentUser ? 'Back to Dashboard' : 'Back to Home'}
+              ← {getBackText()}
             </Link>
           </div>
         </div>
@@ -274,7 +282,6 @@ export default function PostDetailsPage() {
     );
   }
   
-  // Format date
   const formattedDate = post.createdAt 
     ? new Date(post.createdAt).toLocaleDateString('en-US', {
         weekday: 'long',
@@ -288,17 +295,17 @@ export default function PostDetailsPage() {
   
   const hasMedia = !!post.mediaUrl;
   const locationInfo = getLocationInfo(post);
-  const showWarning = post.status !== 'approved';
+  const showWarning = post.status !== 'approved' && !isAdmin;
   
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50 p-4">
       <div className="max-w-4xl mx-auto">
         <Link 
-          href={post.status === 'approved' ? "/" : "/dashboard"}
+          href={getBackUrl()}
           className="inline-flex items-center gap-2 text-blue-600 hover:text-blue-800 mb-6"
         >
           <FaArrowLeft /> 
-          {post.status === 'approved' ? 'Back to Home' : 'Back to Dashboard'}
+          {getBackText()}
         </Link>
         
         {showWarning && (
@@ -308,7 +315,7 @@ export default function PostDetailsPage() {
               <div>
                 <h3 className="font-bold">Post Pending Approval</h3>
                 <p className="text-sm mt-1">
-                  This post is waiting for admin approval and is only visible to you.
+                  This post is waiting for admin approval and is only visible to you and admins.
                 </p>
               </div>
             </div>
@@ -379,14 +386,23 @@ export default function PostDetailsPage() {
               </div>
             )}
 
-            {/* Additional Audio Narration (for image posts that include audio) */}
+            {/* Attached Audio for Image Posts */}
             {post.audioUrl && (
               <div className="mb-8">
-                <h3 className="text-xl font-semibold mb-4 text-gray-800">Audio Narration</h3>
+                <h3 className="text-xl font-semibold mb-4 text-gray-800">
+                  Attached Audio
+                </h3>
                 <div className="rounded-xl overflow-hidden border border-gray-200 bg-gray-50 p-4">
-                  <audio controls className="w-full" src={post.audioUrl}>
-                    Your browser does not support the audio element.
-                  </audio>
+                  <audio controls src={post.audioUrl} className="w-full" />
+                  <div className="mt-2 text-center">
+                    <a
+                      href={post.audioUrl}
+                      download
+                      className="text-blue-600 hover:text-blue-800 text-sm font-medium"
+                    >
+                      Download Audio
+                    </a>
+                  </div>
                 </div>
               </div>
             )}
@@ -488,10 +504,10 @@ export default function PostDetailsPage() {
         
         <div className="mt-8">
           <Link
-            href={post.status === 'approved' ? "/" : "/dashboard"}
+            href={getBackUrl()}
             className="px-6 py-3 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-lg hover:from-blue-600 hover:to-purple-700 transition shadow"
           >
-            ← {post.status === 'approved' ? 'Back to All Testimonies' : 'Back to Dashboard'}
+            ← {getBackText()}
           </Link>
         </div>
       </div>

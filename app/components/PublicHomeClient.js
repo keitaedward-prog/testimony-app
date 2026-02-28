@@ -100,7 +100,12 @@ export default function PublicHomeClient({ initialTestimonies, initialElearning 
             </h3>
           </div>
           <p className="text-sm text-gray-500 mb-2">
-            {isElearning ? 'Admin' : item.userName} • {formatDate(item.createdAt)}
+            {isElearning ? 'Admin' : (
+              // Display full name + phone if available, otherwise fallback to "User +phone"
+              item.userName && !item.userName.startsWith('User ') 
+                ? `${item.userName} (${item.userPhone || 'No phone'})`
+                : `User ${item.userPhone || 'Anonymous'}`
+            )} • {formatDate(item.createdAt)}
           </p>
           {!isElearning && item.location?.placeName && (
             <p className="text-sm text-green-600 mb-2">📍 {item.location.placeName}</p>
@@ -220,7 +225,7 @@ export default function PublicHomeClient({ initialTestimonies, initialElearning 
         <div className="mt-12 flex flex-wrap justify-center items-center gap-8">
           <img src="/peace_building.png" alt="Peace Building Fund" className="h-16 object-contain" />
           <img src="/wones.png" alt="WONES" className="h-16 object-contain" />
-          {/* Add third logo when available */}
+          <img src="/christian_aid.png" alt="christian_aid" className="h-16 object-contain" />
         </div>
       </main>
 
