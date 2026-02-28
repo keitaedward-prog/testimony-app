@@ -51,6 +51,7 @@ export default function PostDetailsPage() {
     return 'Back to Home';
   };
   
+  // Check authentication and admin status
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       setCurrentUser(user);
@@ -59,7 +60,12 @@ export default function PostDetailsPage() {
           const adminDoc = await getDoc(doc(db, 'admins', user.uid));
           setIsAdmin(adminDoc.exists());
         } catch (error) {
-          console.error('Error checking admin status:', error);
+          // If it's a permission error, it's expected for non‑admin users – ignore.
+          if (error.code === 'permission-denied') {
+            console.log('User is not an admin (permission denied)');
+          } else {
+            console.error('Error checking admin status:', error);
+          }
           setIsAdmin(false);
         }
       } else {

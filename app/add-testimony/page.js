@@ -5,7 +5,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { auth, db, storage } from '@/lib/firebase';
 import { onAuthStateChanged } from 'firebase/auth';
-import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, addDoc, serverTimestamp, doc, getDoc } from 'firebase/firestore'; // added getDoc
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import Link from 'next/link';
 
@@ -165,6 +165,21 @@ export default function AddTestimonyPage() {
     });
   };
 
+  // NEW: Fetch user profile from Firestore
+  const fetchUserProfile = async () => {
+    if (!user) return null;
+    try {
+      const userDoc = await getDoc(doc(db, 'users', user.uid));
+      if (userDoc.exists()) {
+        const data = userDoc.data();
+        return `${data.firstName || ''} ${data.lastName || ''}`.trim() || null;
+      }
+    } catch (error) {
+      console.log('Could not fetch user profile:', error);
+    }
+    return null;
+  };
+
   // 3. HANDLE MAIN FILE SELECTION
   const handleFileChange = (e) => {
     const selectedFile = e.target.files[0];
@@ -262,17 +277,20 @@ export default function AddTestimonyPage() {
         audioUrl = await getDownloadURL(audioStorageRef);
       }
 
-      // Prepare testimony data
+      // Fetch author name and construct userName
+      const authorName = await fetchUserProfile();
+      const userName = authorName || (user.phoneNumber ? `User ${user.phoneNumber}` : 'Anonymous');
+
       const testimonyData = {
         userId: user.uid,
         userPhone: user.phoneNumber || '',
-        userName: `User ${user.phoneNumber || 'Anonymous'}`,
+        userName: userName,  // <-- fixed
         title: title || '',
         description: description || '',
         content: description || '',
         type: postType,
         mediaUrl: mediaUrl || '',
-        audioUrl: audioUrl || '',        // new field for additional audio
+        audioUrl: audioUrl || '',
         fileName: fileName || '',
         status: 'pending',
         location: locationData ? {

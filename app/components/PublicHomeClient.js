@@ -101,10 +101,10 @@ export default function PublicHomeClient({ initialTestimonies, initialElearning 
           </div>
           <p className="text-sm text-gray-500 mb-2">
             {isElearning ? 'Admin' : (
-              // Display full name + phone if available, otherwise fallback to "User +phone"
-              item.userName && !item.userName.startsWith('User ') 
-                ? `${item.userName} (${item.userPhone || 'No phone'})`
-                : `User ${item.userPhone || 'Anonymous'}`
+              // Show proper name if available, otherwise phone, else Anonymous
+              item.userName && item.userName !== 'User Anonymous'
+                ? item.userName
+                : (item.userPhone ? `User ${item.userPhone}` : 'Anonymous')
             )} • {formatDate(item.createdAt)}
           </p>
           {!isElearning && item.location?.placeName && (
