@@ -1,4 +1,5 @@
-// app/map-land-here/page.js - UPDATED WITH FOUR CORNERS FEATURE + AUTO-POPULATE ON SUBMIT
+// app/map-land-here/page.js
+// app/map-land-here/page.js
 "use client";
 
 import { useState, useEffect } from 'react';
@@ -9,7 +10,6 @@ import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import Link from 'next/link';
 import dynamic from 'next/dynamic';
 
-// Dynamically import MapPicker to avoid SSR issues
 const MapPicker = dynamic(
   () => import('@/app/components/MapPicker'),
   { 
@@ -41,21 +41,20 @@ export default function AddCoordinatesPage() {
   const [isGettingLocation, setIsGettingLocation] = useState(false);
   const [locationError, setLocationError] = useState('');
   
-  // Four corners state
+  // Dynamic corners – start with 3 corners (minimum)
   const [corners, setCorners] = useState([
-    { lat: '', lng: '' }, // corner 1
-    { lat: '', lng: '' }, // corner 2
-    { lat: '', lng: '' }, // corner 3
-    { lat: '', lng: '' }  // corner 4
+    { lat: '', lng: '' },
+    { lat: '', lng: '' },
+    { lat: '', lng: '' }
   ]);
-  const [gettingCornerIndex, setGettingCornerIndex] = useState(null); // which corner is getting location
+  const [gettingCornerIndex, setGettingCornerIndex] = useState(null);
   
   // Submission states
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
-  // 1. CHECK AUTH - User must be logged in
+  // Check auth
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
       if (currentUser) {
@@ -68,29 +67,23 @@ export default function AddCoordinatesPage() {
     return () => unsubscribe();
   }, [router]);
 
-  // 2. Handle map position changes (main coordinate)
+  // Handle map position change (main coordinate)
   const handleMapPositionChange = (lat, lng) => {
     setLatitude(lat.toFixed(6));
     setLongitude(lng.toFixed(6));
-    
-    // Auto-fetch place name for the new coordinates
     fetchPlaceName(lat, lng);
   };
 
-  // 3. Fetch place name from coordinates
   const fetchPlaceName = async (lat, lng) => {
     try {
       const response = await fetch(
         `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&addressdetails=1&zoom=16`
       );
-      
       if (response.ok) {
         const data = await response.json();
         if (data.display_name) {
-          // Get a concise place name
           const address = data.address;
           let conciseName = '';
-          
           if (address.road) {
             conciseName = address.road;
             if (address.city) conciseName += `, ${address.city}`;
@@ -101,87 +94,59 @@ export default function AddCoordinatesPage() {
           } else if (address.country) {
             conciseName = address.country;
           }
-          
           setPlaceName(conciseName || data.display_name.split(',').slice(0, 3).join(','));
         }
       }
     } catch (error) {
-      console.log('Geocoding failed, using coordinates as place name:', error);
+      console.log('Geocoding failed', error);
       setPlaceName(`${lat.toFixed(4)}, ${lng.toFixed(4)}`);
     }
   };
 
-  // 4. GET CURRENT LOCATION (Auto-fill main coordinates) - now returns coordinates
   const getCurrentLocation = () => {
     return new Promise((resolve, reject) => {
       if (!navigator.geolocation) {
-        reject(new Error('Geolocation is not supported by your browser'));
+        reject(new Error('Geolocation not supported'));
         return;
       }
-
       setIsGettingLocation(true);
       setLocationError('');
-
       navigator.geolocation.getCurrentPosition(
         async (position) => {
           try {
-            const { latitude, longitude, accuracy } = position.coords;
-            
-            // Set coordinates in state
+            const { latitude, longitude } = position.coords;
             setLatitude(latitude.toFixed(6));
             setLongitude(longitude.toFixed(6));
-            
-            // Fetch place name
             await fetchPlaceName(latitude, longitude);
-            
             setIsGettingLocation(false);
-            // Resolve with the coordinates so they can be used directly
-            resolve({ 
-              latitude: latitude.toFixed(6), 
-              longitude: longitude.toFixed(6), 
-              placeName: placeName // note: placeName state might not be updated yet, but we'll re-fetch in handleSubmit if needed
-            });
-          } catch (error) {
+            resolve({ latitude: latitude.toFixed(6), longitude: longitude.toFixed(6), placeName: placeName });
+          } catch (err) {
             setIsGettingLocation(false);
-            reject(error);
+            reject(err);
           }
         },
         (error) => {
           setIsGettingLocation(false);
           let errorMessage = '';
           switch (error.code) {
-            case error.PERMISSION_DENIED:
-              errorMessage = 'Location permission denied. Please enable location services.';
-              break;
-            case error.POSITION_UNAVAILABLE:
-              errorMessage = 'Location information is unavailable.';
-              break;
-            case error.TIMEOUT:
-              errorMessage = 'Location request timed out.';
-              break;
-            default:
-              errorMessage = 'An unknown error occurred.';
-              break;
+            case error.PERMISSION_DENIED: errorMessage = 'Location permission denied.'; break;
+            case error.POSITION_UNAVAILABLE: errorMessage = 'Location unavailable.'; break;
+            case error.TIMEOUT: errorMessage = 'Location request timed out.'; break;
+            default: errorMessage = 'Unknown error.';
           }
           setLocationError(errorMessage);
           reject(new Error(errorMessage));
         },
-        {
-          enableHighAccuracy: true,
-          timeout: 15000,
-          maximumAge: 0,
-        }
+        { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
       );
     });
   };
 
-  // 5. Get location for a specific corner
   const getCornerLocation = async (index) => {
     if (!navigator.geolocation) {
-      alert('Geolocation is not supported by your browser');
+      alert('Geolocation not supported');
       return;
     }
-
     setGettingCornerIndex(index);
     try {
       const position = await new Promise((resolve, reject) => {
@@ -191,17 +156,13 @@ export default function AddCoordinatesPage() {
           maximumAge: 0
         });
       });
-
       const { latitude, longitude } = position.coords;
-      
-      // Update the specific corner
       const updatedCorners = [...corners];
       updatedCorners[index] = {
         lat: latitude.toFixed(6),
         lng: longitude.toFixed(6)
       };
       setCorners(updatedCorners);
-      
     } catch (error) {
       let msg = 'Failed to get location';
       if (error.code === 1) msg = 'Location permission denied';
@@ -213,26 +174,20 @@ export default function AddCoordinatesPage() {
     }
   };
 
-  // 6. Handle manual coordinate input changes (main)
   const handleLatitudeChange = (value) => {
     setLatitude(value);
     const lat = parseFloat(value);
     const lng = parseFloat(longitude);
-    if (!isNaN(lat) && !isNaN(lng)) {
-      fetchPlaceName(lat, lng);
-    }
+    if (!isNaN(lat) && !isNaN(lng)) fetchPlaceName(lat, lng);
   };
 
   const handleLongitudeChange = (value) => {
     setLongitude(value);
     const lat = parseFloat(latitude);
     const lng = parseFloat(value);
-    if (!isNaN(lat) && !isNaN(lng)) {
-      fetchPlaceName(lat, lng);
-    }
+    if (!isNaN(lat) && !isNaN(lng)) fetchPlaceName(lat, lng);
   };
 
-  // 7. Handle corner input changes
   const handleCornerLatChange = (index, value) => {
     const updated = [...corners];
     updated[index].lat = value;
@@ -245,45 +200,63 @@ export default function AddCoordinatesPage() {
     setCorners(updated);
   };
 
-  // 8. Validate all coordinates are filled
+  // Add a new corner (max 7)
+  const addCorner = () => {
+    if (corners.length >= 7) {
+      alert('Maximum 7 corners allowed.');
+      return;
+    }
+    setCorners([...corners, { lat: '', lng: '' }]);
+  };
+
+  // Remove the last corner (min 3)
+  const removeCorner = () => {
+    if (corners.length <= 3) {
+      alert('Minimum 3 corners required.');
+      return;
+    }
+    const newCorners = [...corners];
+    newCorners.pop();
+    setCorners(newCorners);
+  };
+
   const validateCoordinates = (mainLat, mainLng, cornersArray) => {
-    // Main coordinates
     if (!mainLat || !mainLng) {
-      setError('Main coordinates are required. Use the map, "Get Current Location", or enter manually.');
+      setError('Main coordinates are required.');
       return false;
     }
     const lat = parseFloat(mainLat);
     const lng = parseFloat(mainLng);
     if (isNaN(lat) || isNaN(lng) || lat < -90 || lat > 90 || lng < -180 || lng > 180) {
-      setError('Main coordinates are invalid. Latitude: -90 to 90, Longitude: -180 to 180.');
+      setError('Main coordinates invalid.');
       return false;
     }
-
-    // Four corners
+    if (cornersArray.length < 3 || cornersArray.length > 7) {
+      setError('Number of corners must be between 3 and 7.');
+      return false;
+    }
     for (let i = 0; i < cornersArray.length; i++) {
       const corner = cornersArray[i];
       if (!corner.lat || !corner.lng) {
-        setError(`Map corner ${i+1} coordinates are required. Please fill all four corners.`);
+        setError(`Corner ${i+1} coordinates are required.`);
         return false;
       }
       const latCorner = parseFloat(corner.lat);
       const lngCorner = parseFloat(corner.lng);
       if (isNaN(latCorner) || isNaN(lngCorner) || latCorner < -90 || latCorner > 90 || lngCorner < -180 || lngCorner > 180) {
-        setError(`Map corner ${i+1} coordinates are invalid.`);
+        setError(`Corner ${i+1} coordinates invalid.`);
         return false;
       }
     }
     return true;
   };
 
-  // 9. HANDLE FORM SUBMISSION
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!user) {
       setError('You must be logged in to map land');
       return;
     }
-
     setSubmitting(true);
     setError('');
     setSuccess('');
@@ -293,30 +266,25 @@ export default function AddCoordinatesPage() {
       let mainLng = longitude;
       let mainPlaceName = placeName;
 
-      // If main coordinates are empty, try to get them automatically
       if (!mainLat || !mainLng) {
         try {
           const location = await getCurrentLocation();
-          // Use returned values
           mainLat = location.latitude;
           mainLng = location.longitude;
-          // Fetch place name again to ensure it's set
           await fetchPlaceName(parseFloat(mainLat), parseFloat(mainLng));
-          mainPlaceName = placeName; // will be updated after fetchPlaceName
+          mainPlaceName = placeName;
         } catch (locError) {
-          setError('Could not get your current location. Please enter coordinates manually or allow location access.');
+          setError('Could not get location. Please enter coordinates manually or allow location access.');
           setSubmitting(false);
           return;
         }
       }
 
-      // Validate all coordinates using current values
       if (!validateCoordinates(mainLat, mainLng, corners)) {
         setSubmitting(false);
         return;
       }
 
-      // Prepare coordinate data with four corners
       const lat = parseFloat(mainLat);
       const lng = parseFloat(mainLng);
 
@@ -328,14 +296,14 @@ export default function AddCoordinatesPage() {
           latitude: lat,
           longitude: lng,
           placeName: mainPlaceName || `${lat.toFixed(4)}, ${lng.toFixed(4)}`,
-          accuracy: 50, // Default accuracy for manual input
+          accuracy: 50,
           timestamp: new Date().toISOString(),
         },
         fourCorners: corners.map(corner => ({
           latitude: parseFloat(corner.lat),
           longitude: parseFloat(corner.lng)
         })),
-        status: 'approved', // Changed from 'pending' to 'approved'
+        status: 'approved',
         userId: user.uid,
         userPhone: user.phoneNumber || '',
         userName: `User ${user.phoneNumber || 'Anonymous'}`,
@@ -343,14 +311,9 @@ export default function AddCoordinatesPage() {
         updatedAt: serverTimestamp(),
       };
 
-      console.log('📝 Saving coordinate post with four corners:', coordinateData);
-
-      // Save to Firestore
-      const docRef = await addDoc(collection(db, 'testimonies'), coordinateData);
-      
-      console.log('✅ Coordinate post saved with ID:', docRef.id);
-      
-      setSuccess(`Land mapped successfully!`); // Updated success message
+      console.log('Saving coordinate post with', corners.length, 'corners:', coordinateData);
+      await addDoc(collection(db, 'testimonies'), coordinateData);
+      setSuccess(`Land mapped successfully! (${corners.length} corners)`);
       
       // Reset form
       setTitle('');
@@ -358,23 +321,20 @@ export default function AddCoordinatesPage() {
       setLatitude('');
       setLongitude('');
       setPlaceName('');
-      setCorners([{ lat: '', lng: '' }, { lat: '', lng: '' }, { lat: '', lng: '' }, { lat: '', lng: '' }]);
+      setCorners([{ lat: '', lng: '' }, { lat: '', lng: '' }, { lat: '', lng: '' }]);
       setLocationError('');
       
-      // Redirect after 2 seconds
       setTimeout(() => {
         router.push('/dashboard');
       }, 2000);
-
     } catch (err) {
-      console.error('❌ Error posting coordinates:', err);
+      console.error(err);
       setError(`Failed to map land: ${err.message}`);
     } finally {
       setSubmitting(false);
     }
   };
 
-  // 10. SHOW LOADING
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -383,269 +343,123 @@ export default function AddCoordinatesPage() {
     );
   }
 
-  // 11. MAIN FORM UI
   return (
     <div className="min-h-screen bg-gray-50 p-4 md:p-8">
       <div className="max-w-6xl mx-auto">
         <header className="mb-8">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-3xl font-bold text-gray-900">Map Land Here</h1> {/* Updated title */}
+              <h1 className="text-3xl font-bold text-gray-900">Map Land Here</h1>
               <p className="text-gray-600 mt-2">
-                Share a location or define a four‑corner land area. All fields are required.
+                Define a land area with <strong>3 to 7 corners</strong>. All fields are required.
               </p>
             </div>
-            <Link
-              href="/dashboard"
-              className="px-4 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 transition"
-            >
+            <Link href="/dashboard" className="px-4 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 transition">
               ← Back to Dashboard
             </Link>
           </div>
         </header>
 
-        {/* SUCCESS/ERROR MESSAGES */}
-        {success && (
-          <div className="mb-6 p-4 bg-green-100 text-green-700 rounded-lg">
-            ✅ {success}
-          </div>
-        )}
-        {error && (
-          <div className="mb-6 p-4 bg-red-100 text-red-700 rounded-lg">
-            ❌ {error}
-          </div>
-        )}
+        {success && <div className="mb-6 p-4 bg-green-100 text-green-700 rounded-lg">✅ {success}</div>}
+        {error && <div className="mb-6 p-4 bg-red-100 text-red-700 rounded-lg">❌ {error}</div>}
 
-        {/* MAIN FORM */}
         <div className="bg-white shadow rounded-lg p-6">
           <form onSubmit={handleSubmit}>
-            {/* TITLE INPUT */}
+            {/* Title */}
             <div className="mb-6">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Title (Optional)
-              </label>
-              <input
-                type="text"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                placeholder="e.g., 'Favorite Viewpoint' or 'Meeting Spot'"
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              />
+              <label className="block text-sm font-medium text-gray-700 mb-2">Title (Optional)</label>
+              <input type="text" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g., 'Farm Plot'" className="w-full px-4 py-3 border border-gray-300 rounded-lg" />
             </div>
 
-            {/* DESCRIPTION/TEXT NOTES */}
+            {/* Description */}
             <div className="mb-6">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Description / Notes (Optional)
-              </label>
-              <textarea
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                rows={4}
-                placeholder="Add any notes about this location..."
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              />
+              <label className="block text-sm font-medium text-gray-700 mb-2">Description / Notes (Optional)</label>
+              <textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={4} placeholder="Add notes about this land..." className="w-full px-4 py-3 border border-gray-300 rounded-lg" />
             </div>
 
-            {/* SECTION 1: INTERACTIVE MAP & MAIN COORDINATES */}
+            {/* Main Location */}
             <div className="mb-8 p-4 bg-blue-50 rounded-lg border border-blue-200">
               <h2 className="text-lg font-medium text-gray-700 mb-3">🗺️ Main Location</h2>
-              <p className="text-sm text-gray-600 mb-4">
-                This is the primary location for your post. You can also define a land area using the four corners below.
-              </p>
-              
-              {/* MAP COMPONENT */}
-              <MapPicker
-                initialLat={latitude}
-                initialLng={longitude}
-                onPositionChange={handleMapPositionChange}
-                height="400px"
-              />
+              <p className="text-sm text-gray-600 mb-4">This is the primary reference point for your land.</p>
+              <MapPicker initialLat={latitude} initialLng={longitude} onPositionChange={handleMapPositionChange} height="400px" />
 
-              {/* COORDINATES SECTION - MANUAL INPUTS */}
               <div className="mt-6 p-4 bg-green-50 rounded-lg border border-green-200">
                 <h3 className="text-md font-medium text-gray-700 mb-3">📍 Main Coordinates</h3>
-                
                 <div className="mb-4">
-                  <button
-                    type="button"
-                    onClick={getCurrentLocation}
-                    disabled={isGettingLocation}
-                    className="w-full sm:w-auto px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition disabled:opacity-50 mb-4"
-                  >
+                  <button type="button" onClick={getCurrentLocation} disabled={isGettingLocation} className="w-full sm:w-auto px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 mb-4">
                     {isGettingLocation ? 'Getting Location...' : '📡 Get Current Location Automatically'}
                   </button>
-                  
-                  {locationError && (
-                    <div className="mt-2 p-2 bg-red-50 text-red-700 text-sm rounded">
-                      ❌ {locationError}
-                    </div>
-                  )}
+                  {locationError && <div className="mt-2 p-2 bg-red-50 text-red-700 text-sm rounded">❌ {locationError}</div>}
                 </div>
-
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Latitude *
-                    </label>
-                    <input
-                      type="text"
-                      value={latitude}
-                      onChange={(e) => handleLatitudeChange(e.target.value)}
-                      placeholder="e.g., 8.488147"
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                      required
-                    />
-                    <p className="text-xs text-gray-500 mt-1">Between -90 and 90</p>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Latitude *</label>
+                    <input type="text" value={latitude} onChange={(e) => handleLatitudeChange(e.target.value)} placeholder="e.g., 8.488147" className="w-full px-4 py-3 border border-gray-300 rounded-lg" required />
                   </div>
-                  
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Longitude *
-                    </label>
-                    <input
-                      type="text"
-                      value={longitude}
-                      onChange={(e) => handleLongitudeChange(e.target.value)}
-                      placeholder="e.g., -13.235127"
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                      required
-                    />
-                    <p className="text-xs text-gray-500 mt-1">Between -180 and 180</p>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Longitude *</label>
+                    <input type="text" value={longitude} onChange={(e) => handleLongitudeChange(e.target.value)} placeholder="e.g., -13.235127" className="w-full px-4 py-3 border border-gray-300 rounded-lg" required />
                   </div>
                 </div>
-
-                {/* PLACE NAME */}
                 <div className="mb-4">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Place Name (Auto-filled from coordinates)
-                  </label>
-                  <input
-                    type="text"
-                    value={placeName}
-                    onChange={(e) => setPlaceName(e.target.value)}
-                    placeholder="Place name will be auto-filled from coordinates..."
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  />
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Place Name (Auto-filled)</label>
+                  <input type="text" value={placeName} onChange={(e) => setPlaceName(e.target.value)} placeholder="Place name" className="w-full px-4 py-3 border border-gray-300 rounded-lg" />
                 </div>
-
-                {/* COORDINATE PREVIEW */}
-                {(latitude || longitude) && (
-                  <div className="mt-4 p-3 bg-white rounded border">
-                    <div className="font-medium text-gray-700 mb-2">
-                      📍 Main Coordinate Preview
-                    </div>
-                    <div className="text-sm">
-                      <div className="grid grid-cols-2 gap-2">
-                        <div>Latitude:</div>
-                        <div className="font-mono">{latitude || 'Not set'}</div>
-                        <div>Longitude:</div>
-                        <div className="font-mono">{longitude || 'Not set'}</div>
-                        {placeName && (
-                          <>
-                            <div>Place Name:</div>
-                            <div className="font-medium text-green-700">{placeName}</div>
-                          </>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                )}
               </div>
             </div>
 
-            {/* SECTION 2: FOUR CORNERS COORDINATES */}
+            {/* Dynamic Corners Section */}
             <div className="mb-8 p-4 bg-purple-50 rounded-lg border border-purple-200">
-              <h2 className="text-lg font-medium text-gray-700 mb-3">🔲 Four Corners (Land Area)</h2>
-              <p className="text-sm text-gray-600 mb-4">
-                Define the four corners of a land plot. You can enter coordinates manually or use the buttons to capture your current location at each corner.
-              </p>
+              <div className="flex justify-between items-center mb-3">
+                <h2 className="text-lg font-medium text-gray-700">🔲 Land Corners ({corners.length} corners)</h2>
+                <div className="space-x-2">
+                  <button type="button" onClick={addCorner} className="px-3 py-1 bg-purple-600 text-white rounded text-sm hover:bg-purple-700">+ Add Corner</button>
+                  <button type="button" onClick={removeCorner} className="px-3 py-1 bg-red-600 text-white rounded text-sm hover:bg-red-700">- Remove Last</button>
+                </div>
+              </div>
+              <p className="text-sm text-gray-600 mb-4">Minimum 3, maximum 7 corners. You can enter coordinates manually or use the button to capture your current location at each corner.</p>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {[0, 1, 2, 3].map((index) => (
+                {corners.map((corner, index) => (
                   <div key={index} className="p-4 bg-white rounded-lg border border-purple-100">
-                    <h3 className="font-bold text-purple-800 mb-3">Map corner {index + 1}</h3> {/* Updated label */}
-                    
+                    <h3 className="font-bold text-purple-800 mb-3">Corner {index + 1}</h3>
                     <div className="space-y-3">
                       <div>
                         <label className="block text-xs font-medium text-gray-600">Latitude</label>
-                        <input
-                          type="text"
-                          value={corners[index].lat}
-                          onChange={(e) => handleCornerLatChange(index, e.target.value)}
-                          placeholder="Latitude"
-                          className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-purple-500"
-                          required
-                        />
+                        <input type="text" value={corner.lat} onChange={(e) => handleCornerLatChange(index, e.target.value)} placeholder="Latitude" className="w-full px-3 py-2 border border-gray-300 rounded" required />
                       </div>
                       <div>
                         <label className="block text-xs font-medium text-gray-600">Longitude</label>
-                        <input
-                          type="text"
-                          value={corners[index].lng}
-                          onChange={(e) => handleCornerLngChange(index, e.target.value)}
-                          placeholder="Longitude"
-                          className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-purple-500"
-                          required
-                        />
+                        <input type="text" value={corner.lng} onChange={(e) => handleCornerLngChange(index, e.target.value)} placeholder="Longitude" className="w-full px-3 py-2 border border-gray-300 rounded" required />
                       </div>
-                      <button
-                        type="button"
-                        onClick={() => getCornerLocation(index)}
-                        disabled={gettingCornerIndex !== null}
-                        className="w-full py-2 bg-purple-600 text-white rounded hover:bg-purple-700 transition disabled:opacity-50 text-sm"
-                      >
-                        {gettingCornerIndex === index ? 'Getting...' : `GET COORDINATE ${index + 1}`}
+                      <button type="button" onClick={() => getCornerLocation(index)} disabled={gettingCornerIndex !== null} className="w-full py-2 bg-purple-600 text-white rounded hover:bg-purple-700 disabled:opacity-50 text-sm">
+                        {gettingCornerIndex === index ? 'Getting...' : `Get Current Location for Corner ${index + 1}`}
                       </button>
                     </div>
                   </div>
                 ))}
               </div>
-
-              <p className="text-xs text-gray-500 mt-4">
-                * All four corners are required. You can either type the coordinates or use the buttons to capture your current location at each corner.
-              </p>
+              <p className="text-xs text-gray-500 mt-4">* You can have between 3 and 7 corners. All are required before submitting.</p>
             </div>
 
-            {/* SUBMIT BUTTON */}
             <div className="flex space-x-4 pt-6 border-t">
-              <button
-                type="button"
-                onClick={() => router.push('/dashboard')}
-                className="px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition"
-                disabled={submitting}
-              >
+              <button type="button" onClick={() => router.push('/dashboard')} className="px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50" disabled={submitting}>
                 Cancel
               </button>
-              <button
-                type="submit"
-                disabled={submitting}
-                className="flex-1 px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {submitting ? (
-                  <span className="flex items-center justify-center">
-                    <svg className="animate-spin h-5 w-5 mr-3 text-white" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                    </svg>
-                    Mapping Land...
-                  </span>
-                ) : (
-                  'Map Land'
-                )}
+              <button type="submit" disabled={submitting} className="flex-1 px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50">
+                {submitting ? 'Mapping Land...' : 'Map Land'}
               </button>
             </div>
 
-            {/* FORM NOTES */}
             <div className="mt-6 p-4 bg-gray-50 rounded-lg">
               <div className="flex items-start">
                 <div className="text-blue-500 mr-3">ℹ️</div>
                 <div className="text-sm text-gray-600">
                   <p className="font-medium mb-1">About Land Mapping:</p>
                   <ul className="list-disc pl-5 space-y-1">
-                    <li><strong>Main location:</strong> You can set it via map, "Get Current Location", or manually.</li>
-                    <li><strong>Four corners:</strong> Required. Use the buttons to capture your current location at each corner, or enter coordinates manually.</li>
-                    <li>Land mapping posts are <strong>automatically approved</strong> and will appear immediately on the homepage.</li>
+                    <li><strong>Main location:</strong> Set via map, "Get Current Location", or manually.</li>
+                    <li><strong>Corners:</strong> Minimum 3, maximum 7. Use the buttons to add/remove corners.</li>
+                    <li>Land mapping posts are <strong>automatically approved</strong> and appear immediately.</li>
                   </ul>
                 </div>
               </div>
@@ -653,13 +467,12 @@ export default function AddCoordinatesPage() {
           </form>
         </div>
 
-        {/* FOOTER */}
         <footer className="mt-12 pt-8 border-t text-center text-gray-600 text-sm">
           <div className="flex justify-center space-x-6 mb-4">
             <Link href="/" className="hover:text-blue-600">Home</Link>
             <Link href="/dashboard" className="hover:text-blue-600">Dashboard</Link>
             <Link href="/add-testimony" className="hover:text-blue-600">Add Testimony</Link>
-            <Link href="/map-land-here" className="hover:text-blue-600">Map Land Here</Link> {/* Updated link */}
+            <Link href="/map-land-here" className="hover:text-blue-600">Map Land Here</Link>
           </div>
           <p>© 2026 Testimony App. All rights reserved.</p>
           <p className="mt-2">Share Location Coordinates</p>

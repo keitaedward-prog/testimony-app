@@ -6,11 +6,12 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import Pagination from './Pagination';
 
-export default function PublicHomeClient({ initialTestimonies, initialElearning }) {
+export default function PublicHomeClient({ initialTestimonies, initialCases, initialElearning }) {
   const router = useRouter();
   const searchParams = useSearchParams();
   
   const [testimonies, setTestimonies] = useState(initialTestimonies);
+  const [cases, setCases] = useState(initialCases);
   const [elearning, setElearning] = useState(initialElearning);
   
   const [activeTab, setActiveTab] = useState('testimonies');
@@ -22,20 +23,27 @@ export default function PublicHomeClient({ initialTestimonies, initialElearning 
   const [displayedItems, setDisplayedItems] = useState([]);
   const [totalPages, setTotalPages] = useState(1);
 
+  // Determine which data to use based on active tab
+  const getCurrentData = () => {
+    if (activeTab === 'testimonies') return testimonies;
+    if (activeTab === 'cases') return cases;
+    return elearning;
+  };
+
   useEffect(() => {
-    const items = activeTab === 'testimonies' ? testimonies : elearning;
+    const items = getCurrentData();
     let filtered = items;
     if (searchTerm) {
       const term = searchTerm.toLowerCase();
       filtered = items.filter(item => 
         item.title?.toLowerCase().includes(term) ||
         item.description?.toLowerCase().includes(term) ||
-        (activeTab === 'testimonies' && item.location?.placeName?.toLowerCase().includes(term))
+        (activeTab !== 'elearning' && item.location?.placeName?.toLowerCase().includes(term))
       );
     }
     setFilteredItems(filtered);
     setCurrentPage(1);
-  }, [activeTab, searchTerm, testimonies, elearning]);
+  }, [activeTab, searchTerm, testimonies, cases, elearning]);
 
   useEffect(() => {
     const start = (currentPage - 1) * itemsPerPage;
@@ -55,7 +63,7 @@ export default function PublicHomeClient({ initialTestimonies, initialElearning 
 
   useEffect(() => {
     const tab = searchParams.get('tab');
-    if (tab && ['testimonies', 'elearning'].includes(tab)) setActiveTab(tab);
+    if (tab && ['testimonies', 'cases', 'elearning'].includes(tab)) setActiveTab(tab);
     const page = searchParams.get('page');
     if (page) setCurrentPage(parseInt(page));
     const limit = searchParams.get('limit');
@@ -96,12 +104,11 @@ export default function PublicHomeClient({ initialTestimonies, initialElearning 
         <div className="p-6">
           <div className="flex justify-between items-start mb-3">
             <h3 className="text-xl font-bold flex items-center gap-2">
-              {isElearning ? '📚' : getTypeIcon(item.type)} {item.title || (isElearning ? 'E‑Learning' : 'Testimony')}
+              {isElearning ? '📚' : getTypeIcon(item.type)} {item.title || (isElearning ? 'E‑Learning' : (activeTab === 'cases' ? 'Case' : 'Testimony'))}
             </h3>
           </div>
           <p className="text-sm text-gray-500 mb-2">
             {isElearning ? 'Admin' : (
-              // Show proper name if available, otherwise phone, else Anonymous
               item.userName && item.userName !== 'User Anonymous'
                 ? item.userName
                 : (item.userPhone ? `User ${item.userPhone}` : 'Anonymous')
@@ -138,7 +145,7 @@ export default function PublicHomeClient({ initialTestimonies, initialElearning 
           <div className="flex flex-col md:flex-row justify-between items-center">
             <div className="mb-8 md:mb-0">
               <h1 className="text-4xl md:text-5xl font-bold mb-4">Share Your Story</h1>
-              <p className="text-xl text-blue-100">A platform for sharing testimonies and educational materials.</p>
+              <p className="text-xl text-blue-100">A platform for sharing testimonies, cases, and educational materials.</p>
             </div>
             <div className="space-y-4">
               <div className="flex flex-col sm:flex-row gap-4">
@@ -159,12 +166,15 @@ export default function PublicHomeClient({ initialTestimonies, initialElearning 
       <main className="container mx-auto px-4 py-8">
         <div className="mb-8">
           <h2 className="text-3xl font-bold text-gray-900 mb-2">Recent Content</h2>
-          <p className="text-gray-600 mb-6">Browse approved testimonies and educational materials.</p>
+          <p className="text-gray-600 mb-6">Browse approved testimonies, cases, and educational materials.</p>
 
           <div className="flex flex-wrap items-center justify-between border-b border-gray-200">
             <div className="flex">
               <button onClick={() => setActiveTab('testimonies')} className={`px-6 py-3 font-medium ${activeTab === 'testimonies' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-gray-500 hover:text-gray-700'}`}>
                 Testimonies ({testimonies.length})
+              </button>
+              <button onClick={() => setActiveTab('cases')} className={`px-6 py-3 font-medium ${activeTab === 'cases' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-gray-500 hover:text-gray-700'}`}>
+                Cases ({cases.length})
               </button>
               <button onClick={() => setActiveTab('elearning')} className={`px-6 py-3 font-medium ${activeTab === 'elearning' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-gray-500 hover:text-gray-700'}`}>
                 E‑Learning ({elearning.length})

@@ -1,4 +1,4 @@
-// app/post/[id]/page.js - FIXED VERSION WITH ADMIN ACCESS AND AUDIO DISPLAY
+// app/post/[id]/page.js - UPDATED TO SHOW DYNAMIC CORNERS (3-7)
 "use client";
 
 import { useState, useEffect } from 'react';
@@ -60,7 +60,6 @@ export default function PostDetailsPage() {
           const adminDoc = await getDoc(doc(db, 'admins', user.uid));
           setIsAdmin(adminDoc.exists());
         } catch (error) {
-          // If it's a permission error, it's expected for non‑admin users – ignore.
           if (error.code === 'permission-denied') {
             console.log('User is not an admin (permission denied)');
           } else {
@@ -458,14 +457,25 @@ export default function PostDetailsPage() {
                     </div>
                   </div>
                 </div>
+                {/* Open in Google Maps button (web) */}
+                <div className="mt-4">
+                  <a
+                    href={`https://www.google.com/maps?q=${locationInfo.latitude},${locationInfo.longitude}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
+                  >
+                    <FaMapMarkerAlt /> Open in Google Maps
+                  </a>
+                </div>
               </div>
             )}
 
-            {/* FOUR CORNERS SECTION */}
-            {post.type === 'coordinates' && post.fourCorners && post.fourCorners.length === 4 && (
+            {/* UPDATED FOUR CORNERS SECTION – supports 3 to 7 corners */}
+            {post.type === 'coordinates' && post.fourCorners && post.fourCorners.length >= 3 && (
               <div className="mb-8 p-6 bg-gradient-to-r from-purple-50 to-indigo-50 rounded-xl border border-purple-200">
                 <h3 className="text-xl font-semibold mb-4 flex items-center gap-2 text-purple-800">
-                  <span>🔲</span> Four Corners (Land Area)
+                  <span>🔲</span> Land Corners ({post.fourCorners.length} corners)
                 </h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {post.fourCorners.map((corner, index) => (
@@ -481,7 +491,7 @@ export default function PostDetailsPage() {
                   ))}
                 </div>
                 <p className="text-xs text-gray-500 mt-4">
-                  These coordinates define the four corners of a land plot.
+                  These coordinates define the {post.fourCorners.length} corners of a land plot.
                 </p>
               </div>
             )}

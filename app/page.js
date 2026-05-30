@@ -6,7 +6,8 @@ import PublicHomeClient from './components/PublicHomeClient';
 
 export const dynamic = 'force-dynamic';
 
-async function getApprovedTestimonies() {
+// Helper: fetch all approved posts (no displayCategory filter)
+async function getApprovedPosts() {
   try {
     const q = query(
       collection(db, 'testimonies'),
@@ -14,10 +15,8 @@ async function getApprovedTestimonies() {
       where('type', 'in', ['text', 'image', 'audio', 'video']),
       orderBy('createdAt', 'desc')
     );
-    
     const querySnapshot = await getDocs(q);
     const allPosts = [];
-    
     querySnapshot.forEach((doc) => {
       const data = doc.data();
       allPosts.push({
@@ -30,17 +29,26 @@ async function getApprovedTestimonies() {
         phoneNumber: data.phoneNumber || '',
         mediaUrl: data.mediaUrl || '',
         location: data.location || null,
-        // Convert Timestamps to ISO strings
+        displayCategory: data.displayCategory || 'testimony', // default for old posts
         createdAt: data.createdAt ? data.createdAt.toDate().toISOString() : new Date().toISOString(),
         updatedAt: data.updatedAt ? data.updatedAt.toDate().toISOString() : null,
       });
     });
-    
     return allPosts;
   } catch (error) {
-    console.error('Error fetching approved testimonies:', error);
+    console.error('Error fetching approved posts:', error);
     return [];
   }
+}
+
+async function getApprovedTestimonies() {
+  const allPosts = await getApprovedPosts();
+  return allPosts.filter(post => post.displayCategory === 'testimony');
+}
+
+async function getApprovedCases() {
+  const allPosts = await getApprovedPosts();
+  return allPosts.filter(post => post.displayCategory === 'case');
 }
 
 async function getElearningPosts() {
@@ -52,7 +60,6 @@ async function getElearningPosts() {
       return {
         id: doc.id,
         ...data,
-        // Convert Timestamps to ISO strings
         createdAt: data.createdAt ? data.createdAt.toDate().toISOString() : new Date().toISOString(),
         updatedAt: data.updatedAt ? data.updatedAt.toDate().toISOString() : null,
       };
@@ -65,12 +72,14 @@ async function getElearningPosts() {
 
 export default async function HomePage() {
   const testimonies = await getApprovedTestimonies();
+  const cases = await getApprovedCases();
   const eLearning = await getElearningPosts();
   
   return (
     <Suspense fallback={<div>Loading page...</div>}>
       <PublicHomeClient 
         initialTestimonies={testimonies}
+        initialCases={cases}
         initialElearning={eLearning}
       />
     </Suspense>
