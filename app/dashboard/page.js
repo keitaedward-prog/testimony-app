@@ -94,13 +94,13 @@ export default function DashboardPage() {
     return () => unsubscribe();
   }, [router]);
 
-  // 2. FETCH POSTS when user and phone number are available
+  // 2. FETCH POSTS when user is available (no longer depends on userPhoneNumber)
   useEffect(() => {
-    if (user && userPhoneNumber) {
-      console.log('🚀 User and phone ready, fetching posts...');
-      fetchUserPosts(userPhoneNumber);
+    if (user) {
+      console.log('🚀 User ready, fetching posts...');
+      fetchUserPosts();
     }
-  }, [user, userPhoneNumber]);
+  }, [user]);
 
   // 3. FILTER POSTS based on active tab and search term
   useEffect(() => {
@@ -138,25 +138,25 @@ export default function DashboardPage() {
   }, [filteredPosts, currentPage, itemsPerPage]);
 
   // 5. FETCH USER'S POSTS FROM FIRESTORE
-  const fetchUserPosts = async (phoneNumber) => {
-    if (!phoneNumber) {
-      console.error('❌ No phone number to fetch posts');
+  const fetchUserPosts = async () => {
+    if (!user) {
+      console.error('❌ No user to fetch posts');
       setAllPosts([]);
       return;
     }
-    
-    console.log('🔍 Fetching posts for phone:', phoneNumber);
-    
+
+    console.log('🔍 Fetching posts for user:', user.uid);
+
     try {
-      // Try querying by userPhone
+      // Query by userId – this is always allowed by security rules
       const q = query(
         collection(db, 'testimonies'),
-        where('userPhone', '==', phoneNumber)
+        where('userId', '==', user.uid)
       );
-      
+
       const querySnapshot = await getDocs(q);
       const postsArray = [];
-      
+
       querySnapshot.forEach((doc) => {
         const data = doc.data();
         postsArray.push({
@@ -164,53 +164,17 @@ export default function DashboardPage() {
           ...data
         });
       });
-      
-      console.log(`📊 Found ${postsArray.length} posts via userPhone`);
-      
-      if (postsArray.length > 0) {
-        postsArray.sort((a, b) => {
-          const dateA = a.createdAt?.toDate?.() || new Date(0);
-          const dateB = b.createdAt?.toDate?.() || new Date(0);
-          return dateB - dateA;
-        });
-        setAllPosts(postsArray);
-        return;
-      }
-      
-      // If no posts found, try userId
-      if (user?.uid) {
-        const q2 = query(
-          collection(db, 'testimonies'),
-          where('userId', '==', user.uid)
-        );
-        
-        const querySnapshot2 = await getDocs(q2);
-        const postsArray2 = [];
-        
-        querySnapshot2.forEach((doc) => {
-          const data = doc.data();
-          postsArray2.push({
-            id: doc.id,
-            ...data
-          });
-        });
-        
-        console.log(`📊 Found ${postsArray2.length} posts via userId`);
-        
-        if (postsArray2.length > 0) {
-          postsArray2.sort((a, b) => {
-            const dateA = a.createdAt?.toDate?.() || new Date(0);
-            const dateB = b.createdAt?.toDate?.() || new Date(0);
-            return dateB - dateA;
-          });
-          setAllPosts(postsArray2);
-          return;
-        }
-      }
-      
-      // If still no posts, set empty array
-      setAllPosts([]);
-      
+
+      console.log(`📊 Found ${postsArray.length} posts`);
+
+      // Sort by creation date (newest first)
+      postsArray.sort((a, b) => {
+        const dateA = a.createdAt?.toDate?.() || new Date(0);
+        const dateB = b.createdAt?.toDate?.() || new Date(0);
+        return dateB - dateA;
+      });
+
+      setAllPosts(postsArray);
     } catch (error) {
       console.error('❌ Error fetching posts:', error);
       setAllPosts([]);
@@ -219,9 +183,9 @@ export default function DashboardPage() {
 
   // 6. REFRESH POSTS
   const refreshPosts = () => {
-    if (userPhoneNumber) {
+    if (user) {
       console.log('🔄 Manually refreshing posts...');
-      fetchUserPosts(userPhoneNumber);
+      fetchUserPosts();
       setCurrentPage(1);
     }
   };
@@ -641,6 +605,13 @@ export default function DashboardPage() {
                           </div>
                         )}
                       </div>
+
+                      {/* REJECTION REASON */}
+                      {post.status === 'rejected' && post.rejectionReason && (
+                        <div className="mt-2 p-2 bg-red-50 border border-red-200 rounded text-red-700 text-sm">
+                          ❌ Rejected: {post.rejectionReason}
+                        </div>
+                      )}
 
                       {/* POST CONTENT */}
                       {editingPost === post.id ? (

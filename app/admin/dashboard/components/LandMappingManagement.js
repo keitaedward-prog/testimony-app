@@ -1,16 +1,17 @@
-// app/admin/dashboard/components/LandMappingManagement.js
 "use client";
 
 import { useState, useEffect } from 'react';
-import { db } from '@/lib/firebase';
-import { collection, query, where, getDocs, deleteDoc, doc, orderBy } from 'firebase/firestore';
+import { db, auth } from '@/lib/firebase';
+import { collection, query, where, getDocs, updateDoc, doc, orderBy } from 'firebase/firestore';
 import { logAdminAction } from '@/lib/auditLogger';
 import Pagination from '@/app/components/Pagination';
-import Link from 'next/link';  // <-- added
+import Link from 'next/link';
+import { useAuth } from '@/lib/useAuth';
 
 const PAGE_SIZE = 10;
 
 export default function LandMappingManagement() {
+  const { adminRole } = useAuth();
   const [posts, setPosts] = useState([]);
   const [filteredPosts, setFilteredPosts] = useState([]);
   const [displayedPosts, setDisplayedPosts] = useState([]);
@@ -68,21 +69,31 @@ export default function LandMappingManagement() {
     }
   };
 
-  const handleDelete = async (post) => {
-    if (confirm('Delete this land mapping post?')) {
-      try {
-        await deleteDoc(doc(db, 'testimonies', post.id));
-        await logAdminAction('delete_landmapping', 'landmapping', post.id, { title: post.title });
-        fetchPosts();
-      } catch (error) {
-        console.error('Delete error:', error);
-      }
+  // Verify land (only land_admin)
+  const handleVerify = async (post) => {
+    if (adminRole !== 'land_admin') {
+      alert('You are not authorised to verify lands.');
+      return;
+    }
+    const newStatus = post.verified ? 'not_verified' : 'verified';
+    try {
+      await updateDoc(doc(db, 'testimonies', post.id), {
+        verified: newStatus === 'verified',
+        verifiedBy: auth.currentUser?.uid,
+        updatedAt: new Date()
+      });
+      await logAdminAction('verify_land', 'land', post.id, { verified: newStatus === 'verified', title: post.title });
+      alert(`Land ${newStatus === 'verified' ? 'verified' : 'unverified'}`);
+      fetchPosts();
+    } catch (error) {
+      console.error(error);
+      alert('Failed to update verification status');
     }
   };
 
   const formatDate = (ts) => {
     if (!ts) return '';
-    const d = ts.toDate ? ts.toDate() : new Date(ts);
+    const d = new Date(ts);
     return d.toLocaleDateString();
   };
 
@@ -111,43 +122,86 @@ export default function LandMappingManagement() {
 
       <div className="space-y-4">
         {displayedPosts.map(post => (
-          <div key={post.id} className="bg-gray-800 p-4 rounded-lg border border-gray-700">
+          <div
+            key={post.id}
+            className="bg-gray-700 border border-gray-600 rounded-xl p-4 shadow-md hover:shadow-lg transition-shadow"
+          >
             <div className="flex justify-between items-start">
               <div className="flex-1">
-                <h3 className="text-xl font-bold">{post.title || 'Untitled Coordinates'}</h3>
-                <p className="text-sm text-gray-400">{formatDate(post.createdAt)}</p>
-                <p className="text-sm text-blue-400 mt-1">
+                <h3 className="text-xl font-bold text-white">{post.title || 'Untitled Coordinates'}</h3>
+                <p className="text-sm text-gray-300">{formatDate(post.createdAt)}</p>
+                <p className="text-sm text-blue-300 mt-1">
                   Posted by: {getUserDisplay(post)}
                 </p>
                 {post.coordinates?.placeName && (
-                  <p className="text-green-400 mt-1">📍 {post.coordinates.placeName}</p>
+                  <p className="text-green-300 mt-1">📍 {post.coordinates.placeName}</p>
                 )}
+                <div className="mt-2">
+                  <span className={`px-2 py-1 rounded text-xs font-medium ${
+                    post.verified ? 'bg-green-600 text-white' : 'bg-yellow-600 text-white'
+                  }`}>
+                    {post.verified ? '✅ Verified' : '⏳ Not Verified'}
+                  </span>
+                </div>
               </div>
               <div className="flex items-center space-x-2">
                 <Link
                   href={`/post/${post.id}?admin=true`}
-                  className="text-blue-400 hover:text-blue-300 text-sm mr-2"
+                  className="text-blue-400 hover:text-blue-300 text-sm mr-2 underline"
                 >
                   View Details →
                 </Link>
-                <button onClick={() => handleDelete(post)} className="px-3 py-1 bg-red-600 rounded">
-                  Delete
-                </button>
+                {/* Verify button – only land_admin */}
+                {adminRole === 'land_admin' && (
+                  <button
+                    onClick={() => handleVerify(post)}
+                    className={`px-3 py-1 rounded text-sm font-medium ${
+                      post.verified
+                        ? 'bg-yellow-600 hover:bg-yellow-700 text-white'
+                        : 'bg-green-600 hover:bg-green-700 text-white'
+                    }`}
+                  >
+                    {post.verified ? 'Unverify' : 'Verify'}
+                  </button>
+                )}
               </div>
             </div>
-            <p className="mt-2 text-gray-300">{post.description || 'No description'}</p>
+
+            {/* Description */}
+            <p className="mt-2 text-gray-200">{post.description || 'No description'}</p>
+
+            {/* Coordinates */}
             {post.coordinates && (
-              <div className="mt-2 text-sm">
+              <div className="mt-2 text-sm text-gray-300">
                 <p>Latitude: {post.coordinates.latitude?.toFixed(6)}</p>
                 <p>Longitude: {post.coordinates.longitude?.toFixed(6)}</p>
               </div>
             )}
+
+            {/* Corners count */}
             {post.fourCorners && (
-              <div className="mt-2">
-                <p className="font-bold">Four Corners:</p>
-                {post.fourCorners.map((c, i) => (
-                  <p key={i} className="text-xs">Corner {i+1}: {c.latitude?.toFixed(6)}, {c.longitude?.toFixed(6)}</p>
-                ))}
+              <div className="mt-2 text-sm text-purple-300">
+                <p className="font-medium">Corners: {post.fourCorners.length}</p>
+              </div>
+            )}
+
+            {/* Documents */}
+            {post.documents && post.documents.length > 0 && (
+              <div className="mt-3">
+                <p className="font-medium text-white">📎 Documents:</p>
+                <div className="flex flex-wrap gap-2 mt-1">
+                  {post.documents.map((doc, idx) => (
+                    <a
+                      key={idx}
+                      href={doc.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-blue-400 hover:text-blue-300 underline text-sm bg-gray-800 px-2 py-1 rounded"
+                    >
+                      📄 Document {idx+1}
+                    </a>
+                  ))}
+                </div>
               </div>
             )}
           </div>

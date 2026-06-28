@@ -122,17 +122,14 @@ export default function ElearningManagement() {
 
       task.on('state_changed',
         (snapshot) => {
-          // Progress update
           const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
           setUploadProgress(progress);
         },
         (error) => {
-          // Handle unsuccessful uploads
           setUploadTask(null);
           reject(error);
         },
         async () => {
-          // Handle successful uploads
           const downloadURL = await getDownloadURL(task.snapshot.ref);
           setUploadTask(null);
           resolve(downloadURL);
@@ -176,7 +173,6 @@ export default function ElearningManagement() {
         alert('Created successfully');
       }
 
-      // Reset form
       setShowForm(false);
       setEditingPost(null);
       setTitle('');
@@ -327,11 +323,11 @@ export default function ElearningManagement() {
 
       <div className="space-y-4">
         {displayedPosts.map(post => (
-          <div key={post.id} className="bg-gray-800 p-4 rounded-lg border border-gray-700">
+          <div key={post.id} className="bg-gray-700 border border-gray-600 rounded-xl p-4 shadow-md hover:shadow-lg transition-shadow">
             <div className="flex justify-between items-start">
-              <div>
-                <h3 className="text-xl font-bold">{post.title}</h3>
-                <p className="text-sm text-gray-400">{formatDate(post.createdAt)}</p>
+              <div className="flex-1">
+                <h3 className="text-xl font-bold text-white">{post.title}</h3>
+                <p className="text-sm text-gray-300">{formatDate(post.createdAt)}</p>
                 {post.type !== 'text' && post.mediaUrl && (
                   <a href={post.mediaUrl} target="_blank" rel="noopener noreferrer" className="text-blue-400 text-sm hover:underline inline-block mt-1">
                     View {post.type} →
@@ -339,18 +335,18 @@ export default function ElearningManagement() {
                 )}
               </div>
               <div className="flex space-x-2">
-                <button onClick={() => handleEdit(post)} className="px-3 py-1 bg-blue-600 rounded">Edit</button>
-                <button onClick={() => handleDelete(post)} className="px-3 py-1 bg-red-600 rounded">Delete</button>
+                <button onClick={() => handleEdit(post)} className="px-3 py-1 bg-blue-600 hover:bg-blue-700 rounded text-sm text-white">Edit</button>
+                <button onClick={() => handleDelete(post)} className="px-3 py-1 bg-red-600 hover:bg-red-700 rounded text-sm text-white">Delete</button>
               </div>
             </div>
-            <p className="mt-2 text-gray-300">{post.description}</p>
+            <p className="mt-2 text-gray-200">{post.description}</p>
             {post.mediaUrl && (
-              <div className="mt-2">
-                {post.type === 'image' && <img src={post.mediaUrl} alt={post.title} className="max-h-60 rounded" />}
-                {post.type === 'audio' && <audio controls src={post.mediaUrl} className="w-full" />}
-                {post.type === 'video' && <video controls src={post.mediaUrl} className="w-full max-h-60" />}
+              <div className="mt-3">
+                {post.type === 'image' && <img src={post.mediaUrl} alt={post.title} className="max-h-60 rounded border border-gray-600" />}
+                {post.type === 'audio' && <audio controls src={post.mediaUrl} className="w-full mt-2" />}
+                {post.type === 'video' && <video controls src={post.mediaUrl} className="w-full max-h-60 rounded mt-2" />}
                 {post.type === 'document' && (
-                  <a href={post.mediaUrl} target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:underline">
+                  <a href={post.mediaUrl} target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:underline inline-block mt-2">
                     View Document
                   </a>
                 )}

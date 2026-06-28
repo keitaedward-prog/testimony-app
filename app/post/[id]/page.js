@@ -1,4 +1,4 @@
-// app/post/[id]/page.js - UPDATED TO SHOW DYNAMIC CORNERS (3-7)
+// app/post/[id]/page.js - UPDATED TO SHOW WARNING ONLY FOR PENDING POSTS
 "use client";
 
 import { useState, useEffect } from 'react';
@@ -117,6 +117,7 @@ export default function PostDetailsPage() {
           fourCorners: data.fourCorners || null,
           userId: data.userId || '',
           userPhone: data.userPhone || '',
+          rejectionReason: data.rejectionReason || null,
           createdAt: data.createdAt ? data.createdAt.toDate().toISOString() : new Date().toISOString(),
         };
         
@@ -300,7 +301,7 @@ export default function PostDetailsPage() {
   
   const hasMedia = !!post.mediaUrl;
   const locationInfo = getLocationInfo(post);
-  const showWarning = post.status !== 'approved' && !isAdmin;
+  const showWarning = post.status === 'pending' && !isAdmin;  // <--- FIXED: only for pending posts
   
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50 p-4">
@@ -324,6 +325,13 @@ export default function PostDetailsPage() {
                 </p>
               </div>
             </div>
+          </div>
+        )}
+
+        {/* REJECTION REASON (if rejected) */}
+        {post.status === 'rejected' && post.rejectionReason && (
+          <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg text-red-700">
+            <strong>Rejection Reason:</strong> {post.rejectionReason}
           </div>
         )}
         

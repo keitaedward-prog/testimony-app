@@ -2,7 +2,7 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { db } from '@/lib/firebase';
+import { db, auth } from '@/lib/firebase'; // <-- Added auth
 import { 
   collection, 
   getDocs, 
@@ -16,24 +16,26 @@ import {
 import Pagination from '@/app/components/Pagination';
 import { logAdminAction } from '@/lib/auditLogger';
 import Link from 'next/link';
+import { useAuth } from '@/lib/useAuth';
 
 export default function PostsManagement() {
+  const { adminRole } = useAuth();
   const [allPosts, setAllPosts] = useState([]);
   const [filteredPosts, setFilteredPosts] = useState([]);
   const [displayedPosts, setDisplayedPosts] = useState([]);
-  const [filter, setFilter] = useState('pending');
+  const [filter, setFilter] = useState('pending'); // 'pending', 'field_approved', 'approved', 'rejected', 'all'
   const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(true);
   const [expandedPostId, setExpandedPostId] = useState(null);
   const [categoryModalPost, setCategoryModalPost] = useState(null);
   const [selectedCategory, setSelectedCategory] = useState('testimony');
   const [approvalModalPost, setApprovalModalPost] = useState(null);
-  
-  // NEW: state for editing pending post
   const [editModalPost, setEditModalPost] = useState(null);
   const [editTitle, setEditTitle] = useState('');
   const [editDescription, setEditDescription] = useState('');
-  
+  const [rejectionModal, setRejectionModal] = useState(null);
+  const [rejectionReason, setRejectionReason] = useState('');
+
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
@@ -53,11 +55,9 @@ export default function PostsManagement() {
       filtered = filtered.filter(post => 
         post.title?.toLowerCase().includes(term) ||
         post.description?.toLowerCase().includes(term) ||
-        post.content?.toLowerCase().includes(term) ||
         post.userName?.toLowerCase().includes(term) ||
         post.userPhone?.toLowerCase().includes(term) ||
         post.location?.placeName?.toLowerCase().includes(term) ||
-        post.coordinates?.placeName?.toLowerCase().includes(term) ||
         post.id?.toLowerCase().includes(term)
       );
     }
@@ -106,14 +106,81 @@ export default function PostsManagement() {
     }
   };
 
-  // NEW: Open edit modal for pending post
+  // ---- Approval logic ----
+  const openApprovalModal = (post) => {
+    setApprovalModalPost(post);
+  };
+
+  // Approve with category: called from modal
+  const approveWithCategory = async (category) => {
+    const post = approvalModalPost;
+    if (!post) return;
+    try {
+      const updateData = {
+        displayCategory: category,
+        updatedAt: new Date()
+      };
+      let action = 'approve_post';
+      let details = { title: post.title, category };
+
+      if (adminRole === 'field_admin') {
+        // First-level approval
+        updateData.status = 'field_approved';
+        updateData.fieldApprovedBy = auth.currentUser?.uid;
+        action = 'field_approve_post';
+      } else if (adminRole === 'admin') {
+        // Direct approval (can also approve field_approved)
+        updateData.status = 'approved';
+        updateData.adminApprovedBy = auth.currentUser?.uid;
+        action = 'admin_approve_post';
+      } else {
+        alert('You are not authorised to approve posts');
+        return;
+      }
+
+      await updateDoc(doc(db, 'testimonies', post.id), updateData);
+      alert(`Post approved as ${category}! (${adminRole})`);
+      await logAdminAction(action, 'post', post.id, details);
+      setApprovalModalPost(null);
+      fetchPosts();
+    } catch (error) {
+      console.error(error);
+      alert('Failed to approve post');
+    }
+  };
+
+  // ---- Reject logic ----
+  const openRejectModal = (post) => {
+    setRejectionModal(post);
+    setRejectionReason('');
+  };
+
+  const confirmReject = async () => {
+    if (!rejectionModal) return;
+    try {
+      await updateDoc(doc(db, 'testimonies', rejectionModal.id), {
+        status: 'rejected',
+        rejectionReason: rejectionReason || '(no reason)',
+        rejectedBy: auth.currentUser?.uid,
+        updatedAt: new Date()
+      });
+      alert('Post rejected!');
+      await logAdminAction('reject_post', 'post', rejectionModal.id, { title: rejectionModal.title, reason: rejectionReason });
+      setRejectionModal(null);
+      fetchPosts();
+    } catch (error) {
+      console.error(error);
+      alert('Failed to reject post');
+    }
+  };
+
+  // ---- Edit pending post ----
   const openEditModal = (post) => {
     setEditModalPost(post);
     setEditTitle(post.title || '');
     setEditDescription(post.description || '');
   };
 
-  // NEW: Save edited pending post
   const saveEdit = async () => {
     if (!editModalPost) return;
     try {
@@ -123,94 +190,33 @@ export default function PostsManagement() {
         updatedAt: new Date()
       });
       alert('Post updated successfully!');
-      await logAdminAction(
-        'edit_pending_post',
-        'post',
-        editModalPost.id,
-        { 
-          title: editModalPost.title, 
-          newTitle: editTitle,
-          description: editModalPost.description,
-          newDescription: editDescription,
-          userPhone: editModalPost.userPhone,
-          userName: editModalPost.userName
-        }
-      );
+      await logAdminAction('edit_pending_post', 'post', editModalPost.id, { 
+        oldTitle: editModalPost.title, newTitle: editTitle,
+        oldDescription: editModalPost.description, newDescription: editDescription
+      });
       setEditModalPost(null);
-      fetchPosts(); // refresh list
+      fetchPosts();
     } catch (error) {
-      console.error('Error updating post:', error);
+      console.error(error);
       alert('Failed to update post');
     }
   };
 
-  const openApprovalModal = (post) => {
-    setApprovalModalPost(post);
-  };
-
-  const approveWithCategory = async (post, category) => {
+  // ---- Delete ----
+  const handleDelete = async (post) => {
+    if (!confirm('Permanently delete this post?')) return;
     try {
-      await updateDoc(doc(db, 'testimonies', post.id), {
-        status: 'approved',
-        displayCategory: category,
-        updatedAt: new Date()
-      });
-      alert(`Post approved as ${category}!`);
-      await logAdminAction(
-        'approve_post',
-        'post',
-        post.id,
-        { title: post.title || 'Untitled', type: post.type, category, userPhone: post.userPhone, userName: post.userName }
-      );
-      setApprovalModalPost(null);
+      await deleteDoc(doc(db, 'testimonies', post.id));
+      alert('Post deleted!');
+      await logAdminAction('delete_post', 'post', post.id, { title: post.title });
       fetchPosts();
     } catch (error) {
-      console.error('Error approving post:', error);
-      alert('Failed to approve post');
+      console.error(error);
+      alert('Failed to delete post');
     }
   };
 
-  const handleReject = async (postId, post) => {
-    const reason = prompt('Enter rejection reason (optional):');
-    try {
-      await updateDoc(doc(db, 'testimonies', postId), {
-        status: 'rejected',
-        rejectionReason: reason || '',
-        updatedAt: new Date()
-      });
-      alert('Post rejected!');
-      await logAdminAction(
-        'reject_post',
-        'post',
-        postId,
-        { title: post.title || 'Untitled', reason: reason || '(no reason)', type: post.type, userPhone: post.userPhone }
-      );
-      fetchPosts();
-    } catch (error) {
-      console.error('Error rejecting post:', error);
-      alert('Failed to reject post');
-    }
-  };
-
-  const handleDelete = async (postId, post) => {
-    if (confirm('Permanently delete this post?')) {
-      try {
-        await deleteDoc(doc(db, 'testimonies', postId));
-        alert('Post deleted!');
-        await logAdminAction(
-          'delete_post',
-          'post',
-          postId,
-          { title: post.title || 'Untitled', type: post.type, userPhone: post.userPhone, userName: post.userName }
-        );
-        fetchPosts();
-      } catch (error) {
-        console.error('Error deleting post:', error);
-        alert('Failed to delete post');
-      }
-    }
-  };
-
+  // ---- Category edit for approved posts ----
   const openEditCategoryModal = (post) => {
     setCategoryModalPost(post);
     setSelectedCategory(post.displayCategory || 'testimony');
@@ -224,32 +230,26 @@ export default function PostsManagement() {
         updatedAt: new Date()
       });
       alert(`Category changed to ${selectedCategory}`);
-      await logAdminAction(
-        'edit_category',
-        'post',
-        categoryModalPost.id,
-        { title: categoryModalPost.title, oldCategory: categoryModalPost.displayCategory, newCategory: selectedCategory }
-      );
+      await logAdminAction('edit_category', 'post', categoryModalPost.id, { oldCategory: categoryModalPost.displayCategory, newCategory: selectedCategory });
       setCategoryModalPost(null);
       fetchPosts();
     } catch (error) {
-      console.error('Error updating category:', error);
+      console.error(error);
       alert('Failed to update category');
     }
   };
 
+  // Toggle expand
   const toggleExpand = (postId) => {
     setExpandedPostId(expandedPostId === postId ? null : postId);
   };
 
+  // Utilities
   const formatDate = (timestamp) => {
     if (!timestamp) return 'N/A';
     try {
       const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
-      return date.toLocaleDateString('en-US', {
-        year: 'numeric', month: 'short', day: 'numeric',
-        hour: '2-digit', minute: '2-digit'
-      });
+      return date.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
     } catch { return 'Invalid date'; }
   };
 
@@ -266,14 +266,11 @@ export default function PostsManagement() {
   const getStatusBadge = (status) => {
     const styles = {
       pending: 'bg-yellow-500 text-white',
+      field_approved: 'bg-blue-500 text-white',
       approved: 'bg-green-500 text-white',
       rejected: 'bg-red-500 text-white'
     };
-    return (
-      <span className={`px-3 py-1 rounded-full text-sm ${styles[status] || 'bg-gray-500'}`}>
-        {status?.toUpperCase()}
-      </span>
-    );
+    return <span className={`px-3 py-1 rounded-full text-sm ${styles[status] || 'bg-gray-500'}`}>{status?.toUpperCase().replace('_', ' ')}</span>;
   };
 
   const handlePageChange = (page, newItemsPerPage) => {
@@ -285,162 +282,119 @@ export default function PostsManagement() {
   };
 
   const pendingCount = allPosts.filter(p => p.status === 'pending').length;
+  const fieldApprovedCount = allPosts.filter(p => p.status === 'field_approved').length;
   const approvedCount = allPosts.filter(p => p.status === 'approved').length;
   const rejectedCount = allPosts.filter(p => p.status === 'rejected').length;
 
   if (loading) {
-    return (
-      <div className="p-8 text-center">
-        <div className="text-xl mb-4">Loading posts...</div>
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-      </div>
-    );
+    return <div className="p-8 text-center">Loading...</div>;
   }
 
   return (
     <div>
-      {/* Header + Filter Buttons */}
+      {/* Header */}
       <div className="flex justify-between items-center mb-6">
         <h2 className="text-2xl font-bold">Posts Management</h2>
         <div className="flex space-x-4">
           <div className="flex space-x-2">
-            <button onClick={() => setFilter('all')}
-              className={`px-4 py-2 rounded ${filter === 'all' ? 'bg-blue-600' : 'bg-gray-700'}`}>
-              All ({allPosts.length})
-            </button>
-            <button onClick={() => setFilter('pending')}
-              className={`px-4 py-2 rounded ${filter === 'pending' ? 'bg-yellow-600' : 'bg-gray-700'}`}>
-              Pending ({pendingCount})
-            </button>
-            <button onClick={() => setFilter('approved')}
-              className={`px-4 py-2 rounded ${filter === 'approved' ? 'bg-green-600' : 'bg-gray-700'}`}>
-              Approved ({approvedCount})
-            </button>
-            <button onClick={() => setFilter('rejected')}
-              className={`px-4 py-2 rounded ${filter === 'rejected' ? 'bg-red-600' : 'bg-gray-700'}`}>
-              Rejected ({rejectedCount})
-            </button>
+            <button onClick={() => setFilter('all')} className={`px-4 py-2 rounded ${filter === 'all' ? 'bg-blue-600' : 'bg-gray-700'}`}>All ({allPosts.length})</button>
+            <button onClick={() => setFilter('pending')} className={`px-4 py-2 rounded ${filter === 'pending' ? 'bg-yellow-600' : 'bg-gray-700'}`}>Pending ({pendingCount})</button>
+            <button onClick={() => setFilter('field_approved')} className={`px-4 py-2 rounded ${filter === 'field_approved' ? 'bg-blue-600' : 'bg-gray-700'}`}>Field Approved ({fieldApprovedCount})</button>
+            <button onClick={() => setFilter('approved')} className={`px-4 py-2 rounded ${filter === 'approved' ? 'bg-green-600' : 'bg-gray-700'}`}>Approved ({approvedCount})</button>
+            <button onClick={() => setFilter('rejected')} className={`px-4 py-2 rounded ${filter === 'rejected' ? 'bg-red-600' : 'bg-gray-700'}`}>Rejected ({rejectedCount})</button>
           </div>
-          <button onClick={fetchPosts} className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg">
-            Refresh
-          </button>
+          <button onClick={fetchPosts} className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg">Refresh</button>
         </div>
       </div>
 
-      {/* Search Input */}
+      {/* Search */}
       <div className="mb-6">
-        <div className="relative">
-          <input
-            type="text"
-            placeholder="🔍 Search posts..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-400 focus:ring-2 focus:ring-blue-500"
-          />
-          {searchTerm && (
-            <button onClick={() => setSearchTerm('')} className="absolute right-3 top-3 text-gray-400 hover:text-white">✕</button>
-          )}
-        </div>
+        <input
+          type="text"
+          placeholder="🔍 Search posts..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg text-white"
+        />
         <p className="text-sm text-gray-400 mt-2">{filteredPosts.length} of {allPosts.length} posts shown</p>
       </div>
 
-      {/* Stats Card */}
-      <div className="mb-6 p-4 bg-gray-800 rounded-lg">
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <div className="text-center"><div className="text-2xl font-bold">{allPosts.length}</div><div className="text-sm text-gray-400">Total</div></div>
-          <div className="text-center"><div className="text-2xl font-bold text-yellow-400">{pendingCount}</div><div className="text-sm text-gray-400">Pending</div></div>
-          <div className="text-center"><div className="text-2xl font-bold text-green-400">{approvedCount}</div><div className="text-sm text-gray-400">Approved</div></div>
-          <div className="text-center"><div className="text-2xl font-bold text-red-400">{rejectedCount}</div><div className="text-sm text-gray-400">Rejected</div></div>
-        </div>
+      {/* Stats */}
+      <div className="mb-6 p-4 bg-gray-800 rounded-lg grid grid-cols-5 gap-4 text-center">
+        <div><div className="text-2xl font-bold">{allPosts.length}</div><div className="text-sm text-gray-400">Total</div></div>
+        <div><div className="text-2xl font-bold text-yellow-400">{pendingCount}</div><div className="text-sm text-gray-400">Pending</div></div>
+        <div><div className="text-2xl font-bold text-blue-400">{fieldApprovedCount}</div><div className="text-sm text-gray-400">Field Approved</div></div>
+        <div><div className="text-2xl font-bold text-green-400">{approvedCount}</div><div className="text-sm text-gray-400">Approved</div></div>
+        <div><div className="text-2xl font-bold text-red-400">{rejectedCount}</div><div className="text-sm text-gray-400">Rejected</div></div>
       </div>
 
-      {/* Pagination Info */}
-      <div className="mb-6 p-4 bg-gray-800 rounded-lg">
-        <div className="flex justify-between items-center">
-          <div className="text-sm text-gray-300">
-            Showing {displayedPosts.length > 0 ? (currentPage - 1) * itemsPerPage + 1 : 0} to {Math.min(currentPage * itemsPerPage, filteredPosts.length)} of {filteredPosts.length} posts
-            {filter !== 'all' && ` (filtered from ${allPosts.length} total)`}
-          </div>
-          <div className="flex items-center space-x-2">
-            <span className="text-sm text-gray-300">Show:</span>
-            <select value={itemsPerPage} onChange={(e) => {
-              setItemsPerPage(parseInt(e.target.value));
-              setCurrentPage(1);
-            }} className="bg-gray-700 border border-gray-600 rounded px-2 py-1 text-sm text-white">
-              <option value="5">5</option><option value="10">10</option><option value="20">20</option><option value="50">50</option>
-            </select>
-          </div>
-        </div>
-      </div>
-
+      {/* Posts list */}
       {displayedPosts.length === 0 ? (
-        <div className="text-center py-12 text-gray-400">
-          <div className="text-6xl mb-4">{searchTerm ? '🔍' : filter === 'pending' ? '⏳' : filter === 'approved' ? '✅' : filter === 'rejected' ? '❌' : '📝'}</div>
-          <h3 className="text-xl font-medium mb-2">
-            {searchTerm ? 'No matching posts' :
-             filter === 'pending' ? 'No pending posts' :
-             filter === 'approved' ? 'No approved posts' :
-             filter === 'rejected' ? 'No rejected posts' :
-             'No posts found'}
-          </h3>
-          <p>{searchTerm ? 'Try a different search term' : filter === 'pending' ? 'All posts have been reviewed.' : 'Try changing the filter or check back later.'}</p>
-          <button onClick={fetchPosts} className="mt-4 px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg">Refresh</button>
-        </div>
+        <div className="text-center py-12 text-gray-400">No posts found</div>
       ) : (
         <>
           <div className="space-y-6">
             {displayedPosts.map((post) => (
-              <div key={post.id} className="bg-gray-800 border border-gray-700 rounded-xl overflow-hidden">
+              <div key={post.id} className="bg-gray-700 border border-gray-600 rounded-xl overflow-hidden shadow-md">
                 <div className="p-6">
-                  {/* Header */}
                   <div className="flex justify-between items-start mb-4">
                     <div className="flex-1">
                       <h3 className="text-xl font-bold flex items-center gap-2">
-                        {getTypeIcon(post.type)} {post.title || 'Untitled Testimony'}
+                        {getTypeIcon(post.type)} {post.title || 'Untitled'}
+                        {post.status === 'field_approved' && <span className="ml-2 text-xs bg-blue-500 px-2 py-1 rounded">⏳ Awaiting Admin</span>}
                       </h3>
                       <div className="flex flex-wrap items-center gap-3 mt-2">
-                        <div className="text-sm">By: <span className="font-medium">{post.userName || post.userPhone}</span></div>
+                        <div className="text-sm">By: {post.userName || post.userPhone}</div>
                         <div className="text-sm text-gray-400">📅 {formatDate(post.createdAt)}</div>
-                        <span className={`px-2 py-1 rounded-full text-xs ${post.type === 'coordinates' ? 'bg-purple-500 text-white' : 'bg-blue-500 text-white'}`}>
-                          {post.type === 'coordinates' ? '📍 COORDINATES' : post.type?.toUpperCase()}
-                        </span>
-                        {post.status === 'approved' && (
+                        {post.status === 'approved' && post.displayCategory && (
                           <span className={`px-2 py-1 rounded-full text-xs ${post.displayCategory === 'case' ? 'bg-indigo-600' : 'bg-gray-500'}`}>
                             {post.displayCategory === 'case' ? '📂 CASE' : '📝 TESTIMONY'}
                           </span>
                         )}
-                        {post.location && post.type !== 'coordinates' && <div className="text-sm text-green-400">📍 {post.location.placeName || 'Location captured'}</div>}
-                        {post.coordinates && post.type === 'coordinates' && <div className="text-sm text-purple-400">📍 {post.coordinates.placeName || `${post.coordinates.latitude?.toFixed(4)}, ${post.coordinates.longitude?.toFixed(4)}`}</div>}
+                        {post.status === 'rejected' && post.rejectionReason && (
+                          <span className="text-xs text-red-400">Reason: {post.rejectionReason}</span>
+                        )}
                       </div>
                     </div>
                     {getStatusBadge(post.status)}
                   </div>
 
-                  {/* Content (truncated) */}
-                  <div className="mb-6">
-                    <p className="text-gray-300 mb-2">{post.description || 'No description provided.'}</p>
-                    {/* Media display (same as before) – omitted for brevity but unchanged */}
-                  </div>
+                  <p className="text-gray-300 mb-2">{post.description || 'No description.'}</p>
 
-                  {/* Metadata and actions */}
-                  <div className="mt-4 pt-4 border-t border-gray-700 flex justify-between items-center">
-                    <div className="text-sm text-gray-300">{post.userName && !post.userName.startsWith('User ') ? `${post.userName} (${post.userPhone || 'No phone'})` : `User ${post.userPhone || 'Unknown'}`}</div>
-                    <Link href={`/post/${post.id}?admin=true`} className="text-blue-400 hover:text-blue-300 text-sm font-medium">View Details →</Link>
-                  </div>
-
+                  {/* Actions */}
                   <div className="flex justify-between items-center mt-6 pt-6 border-t border-gray-700">
-                    <div className="text-xs text-gray-500">{post.mediaUrl && post.type !== 'coordinates' ? `Has ${post.type} media` : 'No media'}</div>
+                    <div className="text-xs text-gray-500">{post.mediaUrl ? 'Has media' : 'No media'}</div>
                     <div className="flex space-x-3">
+                      {/* Pending posts: field_admin or admin can approve/reject */}
                       {post.status === 'pending' && (
                         <>
+                          {(adminRole === 'field_admin' || adminRole === 'admin') && (
+                            <>
+                              <button onClick={() => openApprovalModal(post)} className="px-4 py-2 bg-green-600 hover:bg-green-700 rounded-lg font-medium">✅ Approve</button>
+                              <button onClick={() => openRejectModal(post)} className="px-4 py-2 bg-red-600 hover:bg-red-700 rounded-lg font-medium">❌ Reject</button>
+                            </>
+                          )}
                           <button onClick={() => openEditModal(post)} className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg font-medium">✏️ Edit</button>
-                          <button onClick={() => openApprovalModal(post)} className="px-4 py-2 bg-green-600 hover:bg-green-700 rounded-lg font-medium">✅ Approve</button>
-                          <button onClick={() => handleReject(post.id, post)} className="px-4 py-2 bg-red-600 hover:bg-red-700 rounded-lg font-medium">❌ Reject</button>
                         </>
                       )}
-                      {post.status === 'approved' && <button onClick={() => openEditCategoryModal(post)} className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 rounded-lg font-medium">🏷️ Edit Category</button>}
-                      <button onClick={() => handleDelete(post.id, post)} className="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg font-medium">🗑️ Delete</button>
-                      <button onClick={() => toggleExpand(post.id)} className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg font-medium">{expandedPostId === post.id ? '▲ Collapse' : '▼ Expand'}</button>
+                      {/* field_approved: only admin can approve or reject (second level) */}
+                      {post.status === 'field_approved' && adminRole === 'admin' && (
+                        <>
+                          <button onClick={() => openApprovalModal(post)} className="px-4 py-2 bg-green-600 hover:bg-green-700 rounded-lg font-medium">✅ Approve</button>
+                          <button onClick={() => openRejectModal(post)} className="px-4 py-2 bg-red-600 hover:bg-red-700 rounded-lg font-medium">❌ Reject</button>
+                        </>
+                      )}
+                      {/* Approved posts: admin can edit category */}
+                      {post.status === 'approved' && adminRole === 'admin' && (
+                        <button onClick={() => openEditCategoryModal(post)} className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 rounded-lg font-medium">🏷️ Edit Category</button>
+                      )}
+                      {/* Delete: only admin */}
+                      {adminRole === 'admin' && (
+                        <button onClick={() => handleDelete(post)} className="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg font-medium">🗑️ Delete</button>
+                      )}
+                      <button onClick={() => toggleExpand(post.id)} className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg font-medium">
+                        {expandedPostId === post.id ? '▲ Collapse' : '▼ Expand'}
+                      </button>
                     </div>
                   </div>
 
@@ -451,9 +405,10 @@ export default function PostsManagement() {
                         <div><div className="text-gray-400">Created</div><div>{formatDate(post.createdAt)}</div></div>
                         <div><div className="text-gray-400">Last Updated</div><div>{formatDate(post.updatedAt)}</div></div>
                         <div><div className="text-gray-400">File Name</div><div>{post.fileName || 'None'}</div></div>
-                        <div><div className="text-gray-400">Media URL</div><div className="truncate">{post.mediaUrl ? <a href={post.mediaUrl} target="_blank" className="text-blue-400 hover:underline">View</a> : 'None'}</div></div>
+                        <div><div className="text-gray-400">Media URL</div><div>{post.mediaUrl ? <a href={post.mediaUrl} target="_blank" className="text-blue-400 hover:underline">View</a> : 'None'}</div></div>
                         {post.rejectionReason && <div className="col-span-2"><div className="text-gray-400">Rejection Reason</div><div className="text-red-300">{post.rejectionReason}</div></div>}
-                        <div className="col-span-2"><div className="text-gray-400">Full Post ID</div><div className="font-mono text-xs bg-black p-2 rounded">{post.id}</div></div>
+                        {post.fieldApprovedBy && <div className="col-span-2"><div className="text-gray-400">Field Approved By</div><div className="text-blue-300">{post.fieldApprovedBy}</div></div>}
+                        {post.adminApprovedBy && <div className="col-span-2"><div className="text-gray-400">Admin Approved By</div><div className="text-green-300">{post.adminApprovedBy}</div></div>}
                       </div>
                     </div>
                   )}
@@ -465,6 +420,19 @@ export default function PostsManagement() {
         </>
       )}
 
+      {/* Approval Modal */}
+      {approvalModalPost && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-gray-800 rounded-lg p-6 max-w-sm w-full">
+            <h3 className="text-xl font-bold mb-4">Approve Post</h3>
+            <p className="mb-4">Select category:</p>
+            <button onClick={() => approveWithCategory('testimony')} className="w-full py-2 bg-green-600 hover:bg-green-700 rounded font-medium mb-2">📝 Testimony</button>
+            <button onClick={() => approveWithCategory('case')} className="w-full py-2 bg-indigo-600 hover:bg-indigo-700 rounded font-medium mb-2">📂 Case</button>
+            <button onClick={() => setApprovalModalPost(null)} className="w-full py-2 bg-gray-600 hover:bg-gray-500 rounded font-medium">Cancel</button>
+          </div>
+        </div>
+      )}
+
       {/* Edit Pending Post Modal */}
       {editModalPost && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
@@ -472,46 +440,39 @@ export default function PostsManagement() {
             <h3 className="text-xl font-bold mb-4">Edit Pending Post</h3>
             <div className="mb-4">
               <label className="block text-sm font-medium mb-1">Title</label>
-              <input
-                type="text"
-                value={editTitle}
-                onChange={(e) => setEditTitle(e.target.value)}
-                className="w-full p-2 bg-gray-700 border border-gray-600 rounded"
-              />
+              <input type="text" value={editTitle} onChange={(e) => setEditTitle(e.target.value)} className="w-full p-2 bg-gray-700 border border-gray-600 rounded" />
             </div>
             <div className="mb-4">
               <label className="block text-sm font-medium mb-1">Description</label>
-              <textarea
-                value={editDescription}
-                onChange={(e) => setEditDescription(e.target.value)}
-                rows={4}
-                className="w-full p-2 bg-gray-700 border border-gray-600 rounded"
-              />
+              <textarea value={editDescription} onChange={(e) => setEditDescription(e.target.value)} rows={4} className="w-full p-2 bg-gray-700 border border-gray-600 rounded" />
             </div>
             <div className="flex justify-end space-x-2">
               <button onClick={() => setEditModalPost(null)} className="px-4 py-2 bg-gray-600 rounded">Cancel</button>
-              <button onClick={saveEdit} className="px-4 py-2 bg-blue-600 rounded">Save Changes</button>
+              <button onClick={saveEdit} className="px-4 py-2 bg-blue-600 rounded">Save</button>
             </div>
           </div>
         </div>
       )}
 
-      {/* Approval Modal */}
-      {approvalModalPost && (
+      {/* Rejection Modal */}
+      {rejectionModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-gray-800 rounded-lg p-6 max-w-sm w-full">
-            <h3 className="text-xl font-bold mb-4">Approve Post</h3>
-            <p className="mb-4">Select the category for this post:</p>
-            <div className="flex flex-col space-y-2">
-              <button onClick={() => approveWithCategory(approvalModalPost, 'testimony')} className="px-4 py-2 bg-green-600 hover:bg-green-700 rounded font-medium">📝 Testimony</button>
-              <button onClick={() => approveWithCategory(approvalModalPost, 'case')} className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 rounded font-medium">📂 Case</button>
-              <button onClick={() => setApprovalModalPost(null)} className="px-4 py-2 bg-gray-600 hover:bg-gray-500 rounded font-medium">Cancel</button>
+          <div className="bg-gray-800 rounded-lg p-6 max-w-md w-full">
+            <h3 className="text-xl font-bold mb-4">Reject Post</h3>
+            <p className="mb-2">Post: {rejectionModal.title}</p>
+            <div className="mb-4">
+              <label className="block text-sm font-medium mb-1">Reason (optional)</label>
+              <input type="text" value={rejectionReason} onChange={(e) => setRejectionReason(e.target.value)} placeholder="Enter reason" className="w-full p-2 bg-gray-700 border border-gray-600 rounded" />
+            </div>
+            <div className="flex justify-end space-x-2">
+              <button onClick={() => setRejectionModal(null)} className="px-4 py-2 bg-gray-600 rounded">Cancel</button>
+              <button onClick={confirmReject} className="px-4 py-2 bg-red-600 rounded">Reject</button>
             </div>
           </div>
         </div>
       )}
 
-      {/* Edit Category Modal */}
+      {/* Edit Category Modal (for approved posts) */}
       {categoryModalPost && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-gray-800 rounded-lg p-6 max-w-sm w-full">

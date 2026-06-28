@@ -1,5 +1,5 @@
+//app/api/admin/create-user/route.js
 import admin from 'firebase-admin';
-// ... other imports
 import { NextResponse } from 'next/server';
 import { adminAuth, adminDb } from '@/lib/firebaseAdmin';
 
@@ -14,7 +14,7 @@ function normalizePhoneNumber(phone) {
 
 export async function POST(request) {
   try {
-    // Verify that the requester is an admin
+    // Verify the requester is an admin
     const authHeader = request.headers.get('authorization');
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -28,13 +28,13 @@ export async function POST(request) {
       return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
     }
 
-    // Check if the requester is in the admins collection
+    // Check if the requester is a super admin (role: 'admin')
     const adminDoc = await adminDb.collection('admins').doc(decodedToken.uid).get();
-    if (!adminDoc.exists) {
-      return NextResponse.json({ error: 'Admin privileges required' }, { status: 403 });
+    if (!adminDoc.exists || adminDoc.data().role !== 'admin') {
+      return NextResponse.json({ error: 'Super admin privileges required' }, { status: 403 });
     }
 
-    const { firstName, lastName, email, phone, password, isAdmin, isActive } = await request.json();
+    const { firstName, lastName, email, phone, password, role, isActive } = await request.json();
 
     // Validate required fields
     if (!firstName || !phone || !password) {
@@ -57,12 +57,11 @@ export async function POST(request) {
     // Determine auth email
     let authEmail = email;
     if (!authEmail || !authEmail.includes('@')) {
-      // Use phone number as email base
       const phoneDigits = normalizedPhone.replace(/\D/g, '');
       authEmail = `${phoneDigits}@phone.user`;
     }
 
-    // Create user in Firebase Auth with phone number
+    // Create user in Firebase Auth
     const userRecord = await adminAuth.createUser({
       email: authEmail,
       password: password,
@@ -83,27 +82,29 @@ export async function POST(request) {
       createdAt: new Date(),
       updatedAt: new Date(),
       createdBy: decodedToken.uid,
-      userType: isAdmin ? 'admin' : 'user',
     };
 
     // Save to users collection
     await adminDb.collection('users').doc(userRecord.uid).set(userData);
 
-    // If admin, add to admins collection
-    if (isAdmin) {
+    // --- NEW: Handle role ---
+    // If role is not 'user', create admin document with the role
+    const userRole = role || 'user';
+    if (userRole !== 'user') {
       const adminData = {
         uid: userRecord.uid,
         email: email || '',
         phone: normalizedPhone,
         firstName,
         lastName: lastName || '',
+        role: userRole, // 'admin', 'field_admin', or 'land_admin'
         addedAt: new Date(),
         addedBy: decodedToken.uid,
       };
       await adminDb.collection('admins').doc(userRecord.uid).set(adminData);
     }
 
-    // After successful creation, log to Firestore using Admin SDK
+    // Log the action to audit logs
     try {
       await adminDb.collection('auditLogs').add({
         timestamp: admin.firestore.FieldValue.serverTimestamp(),
@@ -120,12 +121,11 @@ export async function POST(request) {
           lastName: lastName || '',
           phone: normalizedPhone,
           email: email || null,
-          isAdmin: isAdmin || false,
+          role: userRole,
         },
       });
     } catch (logError) {
       console.error('Failed to write audit log:', logError);
-      // Don't fail the whole request
     }
 
     return NextResponse.json({
