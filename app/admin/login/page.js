@@ -1,7 +1,7 @@
-// app/admin/login/page.js - UPDATED (REMOVED TEST LOGOUT)
+// app/admin/login/page.js - EMAIL ONLY ADMIN LOGIN
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { auth, db } from '@/lib/firebase';
 import { 
@@ -10,39 +10,14 @@ import {
 } from 'firebase/auth';
 import { doc, getDoc } from 'firebase/firestore';
 import Link from 'next/link';
-import { FaEnvelope, FaPhone, FaKey } from 'react-icons/fa';
+import { FaEnvelope, FaKey } from 'react-icons/fa';
 
 export default function AdminLoginPage() {
   const router = useRouter();
-  const [loginMethod, setLoginMethod] = useState('email');
   const [email, setEmail] = useState('');
-  const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-
-  // Auto-format phone number
-  useEffect(() => {
-    if (phone) {
-      let cleaned = phone.replace(/\D/g, '');
-      if (cleaned.length > 0) {
-        cleaned = '+' + cleaned;
-        if (cleaned.length > 4) {
-          cleaned = cleaned.substring(0, 4) + ' ' + cleaned.substring(4);
-        }
-        if (cleaned.length > 8) {
-          cleaned = cleaned.substring(0, 8) + ' ' + cleaned.substring(8);
-        }
-        if (cleaned.length > 12) {
-          cleaned = cleaned.substring(0, 12) + ' ' + cleaned.substring(12);
-        }
-        if (cleaned.length > 16) {
-          cleaned = cleaned.substring(0, 16);
-        }
-      }
-      setPhone(cleaned);
-    }
-  }, [phone]);
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -50,21 +25,13 @@ export default function AdminLoginPage() {
     setError('');
 
     try {
-      let authEmail = '';
-      
-      if (loginMethod === 'email') {
-        authEmail = email;
-      } else {
-        authEmail = phone.replace(/\s/g, '') + '@phone.admin';
-      }
-
-      if (!authEmail || !password) {
-        setError('Please enter email/phone and password');
+      if (!email || !password) {
+        setError('Please enter email and password');
         setLoading(false);
         return;
       }
 
-      const userCredential = await signInWithEmailAndPassword(auth, authEmail, password);
+      const userCredential = await signInWithEmailAndPassword(auth, email, password);
       const user = userCredential.user;
       
       console.log('Admin logged in:', user.uid);
@@ -87,7 +54,7 @@ export default function AdminLoginPage() {
       } else if (err.code === 'auth/wrong-password') {
         setError('Incorrect password');
       } else if (err.code === 'auth/invalid-email') {
-        setError('Invalid email/phone format');
+        setError('Invalid email format');
       } else {
         setError(`Login failed: ${err.message}`);
       }
@@ -113,59 +80,21 @@ export default function AdminLoginPage() {
           </div>
         )}
 
-        {/* Login Method Toggle */}
-        <div className="flex space-x-4 mb-6">
-          <button
-            onClick={() => setLoginMethod('email')}
-            className={`flex-1 py-3 rounded-lg ${loginMethod === 'email' ? 'bg-blue-600 text-white' : 'bg-gray-700 text-gray-300'}`}
-          >
-            <FaEnvelope className="inline mr-2" />
-            Email
-          </button>
-          <button
-            onClick={() => setLoginMethod('phone')}
-            className={`flex-1 py-3 rounded-lg ${loginMethod === 'phone' ? 'bg-blue-600 text-white' : 'bg-gray-700 text-gray-300'}`}
-          >
-            <FaPhone className="inline mr-2" />
-            Phone
-          </button>
-        </div>
-
         <form onSubmit={handleLogin}>
-          {loginMethod === 'email' ? (
-            <div className="mb-4">
-              <label className="block text-gray-300 text-sm mb-2">
-                <FaEnvelope className="inline mr-2 text-blue-400" />
-                Email Address *
-              </label>
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                placeholder="admin@example.com"
-                required
-              />
-            </div>
-          ) : (
-            <div className="mb-4">
-              <label className="block text-gray-300 text-sm mb-2">
-                <FaPhone className="inline mr-2 text-blue-400" />
-                Phone Number *
-              </label>
-              <input
-                type="tel"
-                value={phone}
-                onChange={(e) => setPhone(e.target.value)}
-                className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                placeholder="+232 123 456 7890"
-                required
-              />
-              <p className="text-xs text-gray-400 mt-1">
-                Include country code (e.g., +232)
-              </p>
-            </div>
-          )}
+          <div className="mb-4">
+            <label className="block text-gray-300 text-sm mb-2">
+              <FaEnvelope className="inline mr-2 text-blue-400" />
+              Email Address *
+            </label>
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              placeholder="admin@example.com"
+              required
+            />
+          </div>
 
           <div className="mb-6">
             <label className="block text-gray-300 text-sm mb-2">
@@ -213,8 +142,6 @@ export default function AdminLoginPage() {
             Unauthorized access attempts are logged.
           </p>
         </div>
-
-        {/* TEST LOGOUT BUTTON HAS BEEN REMOVED */}
       </div>
     </div>
   );
