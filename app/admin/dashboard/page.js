@@ -8,29 +8,22 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { auth, db } from '@/lib/firebase';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
-import { 
-  collection, 
-  getDocs, 
-  query, 
-  orderBy,
-  updateDoc,
-  doc,
-  deleteDoc,
-  getDoc,
-  setDoc 
-} from 'firebase/firestore';
+import { collection, getDocs, query, getDoc, doc } from 'firebase/firestore';
 import AdminSidebar from './components/AdminSidebar';
 import PostsManagement from './components/PostsManagement';
 import UsersManagement from './components/UsersManagement';
 import ReportsDashboard from './components/ReportsDashboard';
+import ThemeToggle from '@/app/components/ThemeToggle';
+import { FaBars } from 'react-icons/fa';
 
 export default function AdminDashboardPage() {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState('overview');
   const [user, setUser] = useState(null);
-  const [userProfile, setUserProfile] = useState(null); // Store Firestore user data
+  const [userProfile, setUserProfile] = useState(null);
   const [loading, setLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [stats, setStats] = useState({
     totalPosts: 0,
     pendingPosts: 0,
@@ -38,31 +31,21 @@ export default function AdminDashboardPage() {
     recentActivity: 0
   });
 
-  // Check auth and admin status
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       if (!currentUser) {
         router.push('/admin/login');
         return;
       }
-      
       setUser(currentUser);
-      
       try {
-        // Check if user is admin
         const adminDoc = await getDoc(doc(db, 'admins', currentUser.uid));
         if (adminDoc.exists()) {
           setIsAdmin(true);
-          
-          // Fetch user's profile from users collection
           const userDoc = await getDoc(doc(db, 'users', currentUser.uid));
-          if (userDoc.exists()) {
-            setUserProfile(userDoc.data());
-          }
-          
+          if (userDoc.exists()) setUserProfile(userDoc.data());
           fetchDashboardStats();
         } else {
-          // Not an admin, redirect
           router.push('/dashboard');
         }
       } catch (error) {
@@ -71,25 +54,14 @@ export default function AdminDashboardPage() {
         setLoading(false);
       }
     });
-
     return () => unsubscribe();
   }, [router]);
 
   const fetchDashboardStats = async () => {
     try {
-      // Get total posts
-      const postsQuery = query(collection(db, 'testimonies'));
-      const postsSnapshot = await getDocs(postsQuery);
-      
-      // Get pending posts
-      const pendingPosts = postsSnapshot.docs.filter(
-        doc => doc.data().status === 'pending'
-      ).length;
-
-      // Get total users (from authentication, we need to store them separately)
-      const usersQuery = query(collection(db, 'users'));
-      const usersSnapshot = await getDocs(usersQuery);
-
+      const postsSnapshot = await getDocs(query(collection(db, 'testimonies')));
+      const pendingPosts = postsSnapshot.docs.filter(d => d.data().status === 'pending').length;
+      const usersSnapshot = await getDocs(query(collection(db, 'users')));
       setStats({
         totalPosts: postsSnapshot.size,
         pendingPosts,
@@ -108,83 +80,77 @@ export default function AdminDashboardPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-900 flex items-center justify-center">
-        <div className="text-white text-xl">Verifying admin access...</div>
+      <div className="min-h-screen admin-shell flex items-center justify-center">
+        <div className="animate-pulse text-xl">Verifying admin access...</div>
       </div>
     );
   }
 
   if (!isAdmin) {
     return (
-      <div className="min-h-screen bg-gray-900 flex items-center justify-center">
-        <div className="text-white text-xl">Access denied. Admins only.</div>
+      <div className="min-h-screen admin-shell flex items-center justify-center">
+        <div className="text-xl">Access denied. Admins only.</div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-900 text-gray-100">
+    <div className="min-h-screen admin-shell">
       {/* Top Navigation Bar */}
-      <header className="bg-gray-800 border-b border-gray-700 px-6 py-4">
-        <div className="flex justify-between items-center">
-          <div className="flex items-center space-x-4">
-            <h1 className="text-2xl font-bold">🔐 Admin Dashboard</h1>
-            <div className="text-sm text-gray-400">
-              Logged in as: 
-              <span className="font-medium ml-1">
-                {userProfile ? (
-                  <>
-                    {userProfile.firstName} {userProfile.lastName} 
-                    <span className="text-gray-500 ml-1">({user?.phoneNumber || user?.email})</span>
-                  </>
-                ) : (
-                  user?.email || user?.phoneNumber
-                )}
+      <header className="admin-card border-b admin-border px-4 md:px-6 py-3 md:py-4 sticky top-0 z-20 shadow-sm">
+        <div className="flex justify-between items-center gap-2">
+          <div className="flex items-center gap-2 md:gap-4 min-w-0">
+            <button
+              onClick={() => setSidebarOpen(true)}
+              className="md:hidden p-2 rounded-lg admin-text-muted hover:bg-[var(--admin-hover)] transition"
+              aria-label="Open menu"
+            >
+              <FaBars size={20} />
+            </button>
+            <h1 className="text-lg md:text-2xl font-bold truncate">🔐 Admin</h1>
+            <div className="hidden md:block text-sm admin-text-dim truncate">
+              Logged in as:{' '}
+              <span className="font-medium admin-text-muted">
+                {userProfile
+                  ? `${userProfile.firstName} ${userProfile.lastName}`
+                  : user?.email || user?.phoneNumber}
               </span>
             </div>
           </div>
-          <button
-            onClick={handleLogout}
-            className="px-4 py-2 bg-red-600 hover:bg-red-700 rounded-lg transition"
-          >
-            Logout
-          </button>
+          <div className="flex items-center gap-2">
+            <ThemeToggle />
+            <button
+              onClick={handleLogout}
+              className="px-3 md:px-4 py-2 bg-red-600 hover:bg-red-700 rounded-lg transition text-sm md:text-base text-white font-medium active:scale-95"
+            >
+              Logout
+            </button>
+          </div>
         </div>
       </header>
 
       <div className="flex">
-        {/* Sidebar */}
-        <AdminSidebar activeTab={activeTab} setActiveTab={setActiveTab} />
-        
-        {/* Main Content */}
-        <main className="flex-1 p-6">
-          {/* Quick Stats Overview */}
+        <AdminSidebar
+          activeTab={activeTab}
+          setActiveTab={setActiveTab}
+          isOpen={sidebarOpen}
+          setIsOpen={setSidebarOpen}
+        />
+
+        <main className="flex-1 p-3 md:p-6 min-w-0 overflow-x-hidden">
           {activeTab === 'overview' && (
-            <div className="mb-8">
-              <h2 className="text-2xl font-bold mb-6">Dashboard Overview</h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                <div className="bg-gray-800 p-6 rounded-xl border border-gray-700">
-                  <div className="text-3xl font-bold text-blue-400">{stats.totalPosts}</div>
-                  <div className="text-gray-400 mt-2">Total Posts</div>
-                </div>
-                <div className="bg-gray-800 p-6 rounded-xl border border-gray-700">
-                  <div className="text-3xl font-bold text-yellow-400">{stats.pendingPosts}</div>
-                  <div className="text-gray-400 mt-2">Pending Approval</div>
-                </div>
-                <div className="bg-gray-800 p-6 rounded-xl border border-gray-700">
-                  <div className="text-3xl font-bold text-green-400">{stats.totalUsers}</div>
-                  <div className="text-gray-400 mt-2">Total Users</div>
-                </div>
-                <div className="bg-gray-800 p-6 rounded-xl border border-gray-700">
-                  <div className="text-3xl font-bold text-purple-400">{stats.recentActivity}</div>
-                  <div className="text-gray-400 mt-2">Recent Activity</div>
-                </div>
+            <div className="mb-8 animate-fade-in">
+              <h2 className="text-xl md:text-2xl font-bold mb-4 md:mb-6">Dashboard Overview</h2>
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-6">
+                <StatCard label="Total Posts" value={stats.totalPosts} color="text-blue-500" />
+                <StatCard label="Pending" value={stats.pendingPosts} color="text-yellow-500" />
+                <StatCard label="Total Users" value={stats.totalUsers} color="text-green-500" />
+                <StatCard label="Recent Activity" value={stats.recentActivity} color="text-purple-500" />
               </div>
             </div>
           )}
 
-          {/* Dynamic Content Based on Tab */}
-          <div className="bg-gray-800 rounded-xl border border-gray-700 p-6">
+          <div className="admin-card rounded-xl border admin-border p-3 md:p-6 animate-fade-in">
             {activeTab === 'posts' && <PostsManagement />}
             {activeTab === 'users' && <UsersManagement />}
             {activeTab === 'reports' && <ReportsDashboard />}
@@ -193,19 +159,28 @@ export default function AdminDashboardPage() {
             {activeTab === 'elearning' && <ElearningManagement />}
             {activeTab === 'settings' && (
               <div>
-                <h2 className="text-2xl font-bold mb-6">Admin Settings</h2>
-                <p>Settings content goes here...</p>
+                <h2 className="text-xl md:text-2xl font-bold mb-6">Admin Settings</h2>
+                <p className="admin-text-muted">Settings content goes here...</p>
               </div>
             )}
             {activeTab === 'overview' && (
               <div>
-                <h2 className="text-2xl font-bold mb-6">Recent Activity</h2>
-                <p className="text-gray-400">Quick actions and recent notifications will appear here.</p>
+                <h2 className="text-xl md:text-2xl font-bold mb-6">Recent Activity</h2>
+                <p className="admin-text-muted">Quick actions and recent notifications will appear here.</p>
               </div>
             )}
           </div>
         </main>
       </div>
+    </div>
+  );
+}
+
+function StatCard({ label, value, color }) {
+  return (
+    <div className="admin-card p-4 md:p-6 rounded-xl border admin-border transition-all duration-300 hover:scale-[1.03] hover:shadow-lg">
+      <div className={`text-2xl md:text-3xl font-bold ${color}`}>{value}</div>
+      <div className="admin-text-dim mt-1 md:mt-2 text-xs md:text-sm">{label}</div>
     </div>
   );
 }

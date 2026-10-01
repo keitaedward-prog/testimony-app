@@ -1,8 +1,36 @@
+/*app/globals.css*/
 @import "tailwindcss";
 
+/* Register dark variant for Tailwind v4 (class-based) */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* ---------- THEME VARIABLES ---------- */
 :root {
   --background: #ffffff;
   --foreground: #171717;
+  --admin-bg: #f8fafc;
+  --admin-card: #ffffff;
+  --admin-elevated: #ffffff;
+  --admin-border: #e2e8f0;
+  --admin-text: #0f172a;
+  --admin-text-muted: #475569;
+  --admin-text-dim: #64748b;
+  --admin-hover: #f1f5f9;
+  color-scheme: light;
+}
+
+.dark {
+  --background: #0a0a0a;
+  --foreground: #ededed;
+  --admin-bg: #0f172a;
+  --admin-card: #1e293b;
+  --admin-elevated: #334155;
+  --admin-border: #334155;
+  --admin-text: #f1f5f9;
+  --admin-text-muted: #cbd5e1;
+  --admin-text-dim: #94a3b8;
+  --admin-hover: #334155;
+  color-scheme: dark;
 }
 
 @theme inline {
@@ -12,33 +40,65 @@
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
 body {
   background: var(--background);
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
+  -webkit-font-smoothing: antialiased;
 }
 
-/* Leaflet Map Styles */
-.leaflet-container {
-  font-family: inherit;
+/* ---------- ADMIN THEME HELPERS ---------- */
+.admin-shell {
+  background: var(--admin-bg);
+  color: var(--admin-text);
+}
+.admin-card {
+  background: var(--admin-card);
+  color: var(--admin-text);
+  border-color: var(--admin-border);
+}
+.admin-elevated {
+  background: var(--admin-elevated);
+  color: var(--admin-text);
+}
+.admin-text-muted { color: var(--admin-text-muted); }
+.admin-text-dim { color: var(--admin-text-dim); }
+.admin-border { border-color: var(--admin-border); }
+
+/* Prevent browser auto-dark-mode inversion (fixes the "text invisible" bug) */
+@media (prefers-color-scheme: dark) {
+  html.dark { color-scheme: dark; }
+  html.light { color-scheme: light; }
 }
 
-.leaflet-control-attribution {
-  font-size: 10px;
+/* ---------- SMOOTH ANIMATIONS ---------- */
+@keyframes slideInLeft {
+  from { transform: translateX(-100%); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes scaleIn {
+  from { transform: scale(0.95); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+@keyframes bounceIn {
+  0% { transform: scale(0.9); opacity: 0; }
+  60% { transform: scale(1.03); opacity: 1; }
+  100% { transform: scale(1); }
 }
 
-.leaflet-popup-content {
-  margin: 12px;
-  min-width: 200px;
-}
+.animate-slide-in { animation: slideInLeft 0.3s cubic-bezier(0.22, 1, 0.36, 1); }
+.animate-fade-in { animation: fadeIn 0.35s ease-out; }
+.animate-scale-in { animation: scaleIn 0.25s ease-out; }
+.animate-bounce-in { animation: bounceIn 0.4s cubic-bezier(0.22, 1, 0.36, 1); }
 
+/* ---------- LEAFLET MAP STYLES (unchanged) ---------- */
+.leaflet-container { font-family: inherit; }
+.leaflet-control-attribution { font-size: 10px; }
+.leaflet-popup-content { margin: 12px; min-width: 200px; }
 .leaflet-popup-content-wrapper {
   border-radius: 8px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);

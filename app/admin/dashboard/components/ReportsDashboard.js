@@ -344,7 +344,7 @@ export default function ReportsDashboard() {
         <select 
           value={timeRange}
           onChange={(e) => setTimeRange(e.target.value)}
-          className="bg-gray-700 border border-gray-600 rounded-lg px-4 py-2"
+          className="bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg px-4 py-2"
         >
           <option value="week">Last 7 Days</option>
           <option value="month">Last 30 Days</option>
@@ -364,42 +364,42 @@ export default function ReportsDashboard() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             <div className="bg-gradient-to-br from-blue-900/50 to-blue-800/30 border border-blue-700/30 p-6 rounded-xl">
               <div className="text-3xl font-bold">{reportData.totalPosts}</div>
-              <div className="text-gray-400">Total Posts</div>
-              <div className="text-sm text-gray-500 mt-2">
+              <div className="text-gray-500 dark:text-gray-400">Total Posts</div>
+              <div className="text-sm text-gray-500 dark:text-gray-400 mt-2">
                 {reportData.approvedPosts} approved • {reportData.pendingPosts} pending • {reportData.rejectedPosts} rejected
               </div>
             </div>
             <div className="bg-gradient-to-br from-green-900/50 to-green-800/30 border border-green-700/30 p-6 rounded-xl">
               <div className="text-3xl font-bold">{reportData.approvedPosts}</div>
-              <div className="text-gray-400">Approved Posts</div>
+              <div className="text-gray-500 dark:text-gray-400">Approved Posts</div>
               <div className="text-sm text-green-300 mt-2">
                 {reportData.totalPosts > 0 ? Math.round((reportData.approvedPosts / reportData.totalPosts) * 100) : 0}% of total
               </div>
             </div>
             <div className="bg-gradient-to-br from-yellow-900/50 to-yellow-800/30 border border-yellow-700/30 p-6 rounded-xl">
               <div className="text-3xl font-bold">{reportData.pendingPosts}</div>
-              <div className="text-gray-400">Pending Review</div>
+              <div className="text-gray-500 dark:text-gray-400">Pending Review</div>
               <div className="text-sm text-yellow-300 mt-2">
                 {reportData.totalPosts > 0 ? Math.round((reportData.pendingPosts / reportData.totalPosts) * 100) : 0}% of total
               </div>
             </div>
             <div className="bg-gradient-to-br from-purple-900/50 to-purple-800/30 border border-purple-700/30 p-6 rounded-xl">
               <div className="text-3xl font-bold">{reportData.coordinatePosts}</div>
-              <div className="text-gray-400">Coordinate Posts</div>
+              <div className="text-gray-500 dark:text-gray-400">Coordinate Posts</div>
               <div className="text-sm text-purple-300 mt-2">
                 {reportData.totalPosts > 0 ? Math.round((reportData.coordinatePosts / reportData.totalPosts) * 100) : 0}% of total
               </div>
             </div>
             <div className="bg-gradient-to-br from-red-900/50 to-red-800/30 border border-red-700/30 p-6 rounded-xl">
               <div className="text-3xl font-bold">{reportData.rejectedPosts}</div>
-              <div className="text-gray-400">Rejected Posts</div>
+              <div className="text-gray-500 dark:text-gray-400">Rejected Posts</div>
               <div className="text-sm text-red-300 mt-2">
                 {reportData.totalPosts > 0 ? Math.round((reportData.rejectedPosts / reportData.totalPosts) * 100) : 0}% of total
               </div>
             </div>
             <div className="bg-gradient-to-br from-teal-900/50 to-teal-800/30 border border-teal-700/30 p-6 rounded-xl">
               <div className="text-3xl font-bold">{reportData.totalUsers}</div>
-              <div className="text-gray-400">Total Users</div>
+              <div className="text-gray-500 dark:text-gray-400">Total Users</div>
               <div className="text-sm text-teal-300 mt-2">
                 Avg: {reportData.totalUsers > 0 ? (reportData.totalPosts / reportData.totalUsers).toFixed(1) : 0} posts per user
               </div>
@@ -409,10 +409,10 @@ export default function ReportsDashboard() {
           {/* Charts Grid */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
             {/* Daily Posts Chart */}
-            <div className="bg-gray-850 border border-gray-700 rounded-xl p-6">
+            <div className="bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-6">
               <div className="flex justify-between items-center mb-6">
-                <h3 className="font-bold">Daily Posts Activity</h3>
-                <span className="text-sm text-gray-400">
+                <h3 className="font-bold admin-text">Daily Posts Activity</h3>
+                <span className="text-sm text-gray-500 dark:text-gray-400">
                   Last {timeRange === 'week' ? '7' : timeRange === 'month' ? '30' : '365'} days
                 </span>
               </div>
@@ -428,34 +428,34 @@ export default function ReportsDashboard() {
                         style={{ height: `${Math.max(heightPercent, 5)}%` }}
                         title={`${day.date}: ${day.posts} posts`}
                       ></div>
-                      <div className="text-xs text-gray-400 mt-2">{day.day}</div>
+                      <div className="text-xs text-gray-500 dark:text-gray-400 mt-2">{day.day}</div>
                       <div className="text-sm font-medium mt-1">{day.posts}</div>
                     </div>
                   );
                 })}
               </div>
-              <div className="mt-4 text-sm text-gray-400">
+              <div className="mt-4 text-sm text-gray-500 dark:text-gray-400">
                 Total: {reportData.dailyPosts.reduce((sum, day) => sum + day.posts, 0)} posts
               </div>
             </div>
 
             {/* Post Types Distribution */}
-            <div className="bg-gray-850 border border-gray-700 rounded-xl p-6">
-              <h3 className="font-bold mb-6">Content Types Distribution</h3>
+            <div className="bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-6">
+              <h3 className="font-bold mb-6 admin-text">Content Types Distribution</h3>
               <div className="space-y-4">
                 {Object.entries(reportData.postTypes).map(([type, count]) => {
                   const percentage = reportData.totalPosts > 0 ? (count / reportData.totalPosts) * 100 : 0;
                   
                   return (
                     <div key={type} className="flex items-center">
-                      <div className="w-32 text-gray-400 capitalize">
+                      <div className="w-32 text-gray-500 dark:text-gray-400 capitalize">
                         {type === 'coordinates' ? '📍 Coordinates' : 
                          type === 'text' ? '📝 Text' : 
                          type === 'image' ? '🖼️ Image' : 
                          type === 'audio' ? '🎤 Audio' : 
                          type === 'video' ? '🎥 Video' : type}
                       </div>
-                      <div className="flex-1 bg-gray-700 rounded-full h-6 overflow-hidden">
+                      <div className="flex-1 bg-gray-200 dark:bg-gray-700 rounded-full h-6 overflow-hidden">
                         <div 
                           className={`h-full ${
                             type === 'text' ? 'bg-blue-600' :
@@ -469,7 +469,7 @@ export default function ReportsDashboard() {
                       </div>
                       <div className="w-16 text-right">
                         <span className="font-medium">{count}</span>
-                        <span className="text-xs text-gray-400 ml-1">({percentage.toFixed(1)}%)</span>
+                        <span className="text-xs text-gray-500 dark:text-gray-400 ml-1">({percentage.toFixed(1)}%)</span>
                       </div>
                     </div>
                   );
@@ -478,8 +478,8 @@ export default function ReportsDashboard() {
             </div>
 
             {/* User Growth */}
-            <div className="bg-gray-850 border border-gray-700 rounded-xl p-6">
-              <h3 className="font-bold mb-6">User Growth (Last 6 Months)</h3>
+            <div className="bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-6">
+              <h3 className="font-bold mb-6 admin-text">User Growth (Last 6 Months)</h3>
               <div className="h-64">
                 <div className="flex h-full items-end space-x-2">
                   {reportData.userGrowth.map((month, index) => {
@@ -493,7 +493,7 @@ export default function ReportsDashboard() {
                           style={{ height: `${Math.max(heightPercent, 5)}%` }}
                           title={`${month.month}: ${month.totalUsers} total users (${month.newUsers} new)`}
                         ></div>
-                        <div className="text-xs text-gray-400 mt-2">{month.month}</div>
+                        <div className="text-xs text-gray-500 dark:text-gray-400 mt-2">{month.month}</div>
                         <div className="text-sm font-medium mt-1">{month.totalUsers}</div>
                         <div className="text-xs text-green-400">+{month.newUsers}</div>
                       </div>
@@ -501,14 +501,14 @@ export default function ReportsDashboard() {
                   })}
                 </div>
               </div>
-              <div className="mt-4 text-sm text-gray-400">
+              <div className="mt-4 text-sm text-gray-500 dark:text-gray-400">
                 Total Growth: +{reportData.userGrowth.reduce((sum, month) => sum + month.newUsers, 0)} new users
               </div>
             </div>
 
             {/* Popular Posting Hours */}
-            <div className="bg-gray-850 border border-gray-700 rounded-xl p-6">
-              <h3 className="font-bold mb-6">Posts by Status</h3>
+            <div className="bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-6">
+              <h3 className="font-bold mb-6 admin-text">Posts by Status</h3>
               <div className="space-y-4">
                 {[
                   { status: 'approved', label: '✅ Approved', color: 'bg-green-600', count: reportData.approvedPosts },
@@ -519,10 +519,10 @@ export default function ReportsDashboard() {
                   
                   return (
                     <div key={item.status} className="flex items-center">
-                      <div className="w-40 text-gray-300">
+                      <div className="w-40 text-gray-500 dark:text-gray-400">
                         {item.label}
                       </div>
-                      <div className="flex-1 bg-gray-700 rounded-full h-6 overflow-hidden">
+                      <div className="flex-1 bg-gray-200 dark:bg-gray-700 rounded-full h-6 overflow-hidden">
                         <div 
                           className={`h-full ${item.color}`}
                           style={{ width: `${percentage}%` }}
@@ -530,7 +530,7 @@ export default function ReportsDashboard() {
                       </div>
                       <div className="w-16 text-right">
                         <span className="font-medium">{item.count}</span>
-                        <span className="text-xs text-gray-400 ml-1">({percentage.toFixed(1)}%)</span>
+                        <span className="text-xs text-gray-500 dark:text-gray-400 ml-1">({percentage.toFixed(1)}%)</span>
                       </div>
                     </div>
                   );
@@ -540,18 +540,18 @@ export default function ReportsDashboard() {
           </div>
 
           {/* Export Section */}
-          <div className="bg-gray-850 border border-gray-700 rounded-xl p-6">
-            <h3 className="font-bold mb-4 flex items-center gap-2">
+          <div className="bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-6">
+            <h3 className="font-bold mb-4 flex items-center gap-2 admin-text">
               <FaChartLine /> Export Reports
             </h3>
-            <p className="text-gray-400 mb-6">
+            <p className="text-gray-500 dark:text-gray-400 mb-6">
               Download comprehensive reports of your app's analytics and statistics.
             </p>
             <div className="flex flex-wrap gap-4">
               <button
                 onClick={exportToCSV}
                 disabled={exporting === 'csv'}
-                className="flex items-center gap-2 px-6 py-3 bg-blue-600 hover:bg-blue-700 rounded-lg disabled:opacity-50"
+                className="flex items-center gap-2 px-6 py-3 bg-blue-600 hover:bg-blue-700 rounded-lg disabled:opacity-50 text-white"
               >
                 {exporting === 'csv' ? (
                   <>
@@ -567,7 +567,7 @@ export default function ReportsDashboard() {
               <button
                 onClick={exportToPDF}
                 disabled={exporting === 'pdf'}
-                className="flex items-center gap-2 px-6 py-3 bg-red-600 hover:bg-red-700 rounded-lg disabled:opacity-50"
+                className="flex items-center gap-2 px-6 py-3 bg-red-600 hover:bg-red-700 rounded-lg disabled:opacity-50 text-white"
               >
                 {exporting === 'pdf' ? (
                   <>
@@ -582,15 +582,15 @@ export default function ReportsDashboard() {
               </button>
               <button
                 onClick={fetchReportData}
-                className="flex items-center gap-2 px-6 py-3 bg-gray-700 hover:bg-gray-600 rounded-lg"
+                className="flex items-center gap-2 px-6 py-3 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 rounded-lg"
               >
                 <FaDownload /> Refresh Data
               </button>
             </div>
             
-            <div className="mt-6 p-4 bg-gray-900/50 rounded-lg border border-gray-700">
-              <h4 className="font-medium mb-2">📊 Report Summary</h4>
-              <div className="text-sm text-gray-400">
+            <div className="mt-6 p-4 bg-gray-100 dark:bg-gray-900/50 rounded-lg border border-gray-200 dark:border-gray-700">
+              <h4 className="font-medium mb-2 admin-text">📊 Report Summary</h4>
+              <div className="text-sm text-gray-500 dark:text-gray-400">
                 <p>• Generated on: {new Date().toLocaleDateString()}</p>
                 <p>• Time Range: {timeRange === 'week' ? 'Last 7 Days' : 
                                   timeRange === 'month' ? 'Last 30 Days' : 

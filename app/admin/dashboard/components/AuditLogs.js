@@ -120,9 +120,9 @@ export default function AuditLogs() {
           placeholder="🔍 Search logs by action, target, admin, details..."
           value={searchTerm}
           onChange={handleSearch}
-          className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-400 focus:ring-2 focus:ring-blue-500"
+          className="w-full px-4 py-3 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg admin-text placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-blue-500 outline-none"
         />
-        <p className="text-sm text-gray-400 mt-2">
+        <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">
           Showing {filteredLogs.length} of {logs.length} logs
         </p>
       </div>
@@ -133,7 +133,7 @@ export default function AuditLogs() {
           <div className="mt-4">Loading audit logs...</div>
         </div>
       ) : filteredLogs.length === 0 ? (
-        <div className="text-center py-12 text-gray-400">
+        <div className="text-center py-12 text-gray-500 dark:text-gray-400">
           <div className="text-6xl mb-4">📋</div>
           <h3 className="text-xl font-medium mb-2">No logs found</h3>
           <p>{searchTerm ? 'Try a different search term' : 'No admin actions have been logged yet.'}</p>
@@ -142,26 +142,26 @@ export default function AuditLogs() {
         <>
           <div className="overflow-x-auto">
             <table className="w-full text-sm text-left">
-              <thead className="bg-gray-700">
+              <thead className="bg-gray-100 dark:bg-gray-700">
                 <tr>
-                  <th className="px-6 py-3">Timestamp</th>
-                  <th className="px-6 py-3">Admin</th>
-                  <th className="px-6 py-3">Action</th>
-                  <th className="px-6 py-3">Target</th>
-                  <th className="px-6 py-3">Details</th>
+                  <th className="px-6 py-3 admin-text-muted text-left">Timestamp</th>
+                  <th className="px-6 py-3 admin-text-muted text-left">Admin</th>
+                  <th className="px-6 py-3 admin-text-muted text-left">Action</th>
+                  <th className="px-6 py-3 admin-text-muted text-left">Target</th>
+                  <th className="px-6 py-3 admin-text-muted text-left">Details</th>
                 </tr>
               </thead>
               <tbody>
                 {filteredLogs.map((log) => (
-                  <tr key={log.id} className="border-b border-gray-700 hover:bg-gray-750">
-                    <td className="px-6 py-4 whitespace-nowrap text-gray-300">
+                  <tr key={log.id} className="border-b border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-750">
+                    <td className="px-6 py-4 whitespace-nowrap admin-text-muted">
                       {formatDate(log.timestamp)}
                     </td>
                     <td className="px-6 py-4">
-                      <div className="text-gray-300">
+                      <div className="admin-text-muted">
                         {log.admin?.email || log.admin?.phone || log.admin?.uid?.substring(0, 8)}
                       </div>
-                      <div className="text-xs text-gray-500">
+                      <div className="text-xs admin-text-dim">
                         {log.admin?.uid?.substring(0, 8)}...
                       </div>
                     </td>
@@ -170,14 +170,14 @@ export default function AuditLogs() {
                     </td>
                     <td className="px-6 py-4">
                       <div>
-                        <span className="text-gray-400">{log.targetType}:</span>
-                        <span className="ml-1 font-mono text-xs text-gray-300">
+                        <span className="text-gray-500 dark:text-gray-400">{log.targetType}:</span>
+                        <span className="ml-1 font-mono text-xs admin-text-muted">
                           {log.targetId?.substring(0, 8)}...
                         </span>
                       </div>
                     </td>
                     <td className="px-6 py-4">
-                      <pre className="text-xs text-gray-400 whitespace-pre-wrap max-w-xs">
+                      <pre className="text-xs text-gray-500 dark:text-gray-400 whitespace-pre-wrap max-w-xs">
                         {JSON.stringify(log.details, null, 2)}
                       </pre>
                     </td>
@@ -193,7 +193,7 @@ export default function AuditLogs() {
               <button
                 onClick={handleLoadMore}
                 disabled={loading}
-                className="px-6 py-3 bg-gray-700 hover:bg-gray-600 rounded-lg disabled:opacity-50"
+                className="px-6 py-3 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 rounded-lg disabled:opacity-50"
               >
                 {loading ? 'Loading...' : 'Load More'}
               </button>

@@ -248,19 +248,19 @@ export default function ElearningManagement() {
       </div>
 
       {showForm && (
-        <form onSubmit={handleSubmit} className="mb-8 p-6 bg-gray-800 rounded-lg">
+        <form onSubmit={handleSubmit} className="mb-8 p-6 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg">
           <h3 className="text-xl font-bold mb-4">{editingPost ? 'Edit Post' : 'Create New Post'}</h3>
           <div className="mb-4">
             <label className="block mb-2">Title *</label>
-            <input type="text" value={title} onChange={(e) => setTitle(e.target.value)} className="w-full p-2 bg-gray-700 rounded" required />
+            <input type="text" value={title} onChange={(e) => setTitle(e.target.value)} className="w-full p-2 bg-gray-100 dark:bg-gray-700 rounded" required />
           </div>
           <div className="mb-4">
             <label className="block mb-2">Description *</label>
-            <textarea value={description} onChange={(e) => setDescription(e.target.value)} className="w-full p-2 bg-gray-700 rounded" rows="3" required />
+            <textarea value={description} onChange={(e) => setDescription(e.target.value)} className="w-full p-2 bg-gray-100 dark:bg-gray-700 rounded" rows="3" required />
           </div>
           <div className="mb-4">
             <label className="block mb-2">Type</label>
-            <select value={type} onChange={(e) => setType(e.target.value)} className="w-full p-2 bg-gray-700 rounded">
+            <select value={type} onChange={(e) => setType(e.target.value)} className="w-full p-2 bg-gray-100 dark:bg-gray-700 rounded">
               <option value="text">Text</option>
               <option value="image">Image</option>
               <option value="audio">Audio</option>
@@ -280,7 +280,7 @@ export default function ElearningManagement() {
                   type === 'video' ? 'video/*' :
                   '.pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.txt'
                 }
-                className="w-full p-2 bg-gray-700 rounded"
+                className="w-full p-2 bg-gray-100 dark:bg-gray-700 rounded"
                 disabled={uploading}
               />
               {filePreview && <img src={filePreview} alt="Preview" className="mt-2 max-h-48 rounded" />}
@@ -292,7 +292,7 @@ export default function ElearningManagement() {
                       style={{ width: `${uploadProgress}%` }}
                     ></div>
                   </div>
-                  <p className="text-sm text-gray-300 mt-1">Uploading: {Math.round(uploadProgress)}%</p>
+                  <p className="text-sm text-gray-700 dark:text-gray-300 mt-1">Uploading: {Math.round(uploadProgress)}%</p>
                 </div>
               )}
             </div>
@@ -318,16 +318,22 @@ export default function ElearningManagement() {
       )}
 
       <div className="mb-6">
-        <input type="text" placeholder="Search posts..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full p-3 bg-gray-800 border border-gray-700 rounded" />
+        <input 
+          type="text" 
+          placeholder="Search posts..." 
+          value={searchTerm} 
+          onChange={(e) => setSearchTerm(e.target.value)} 
+          className="w-full p-3 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg admin-text placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-blue-500 outline-none" 
+        />
       </div>
 
       <div className="space-y-4">
         {displayedPosts.map(post => (
-          <div key={post.id} className="bg-gray-700 border border-gray-600 rounded-xl p-4 shadow-md hover:shadow-lg transition-shadow">
+          <div key={post.id} className="bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl p-4 shadow-md hover:shadow-lg transition-shadow">
             <div className="flex justify-between items-start">
               <div className="flex-1">
-                <h3 className="text-xl font-bold text-white">{post.title}</h3>
-                <p className="text-sm text-gray-300">{formatDate(post.createdAt)}</p>
+                <h3 className="text-lg md:text-xl font-bold admin-text">{post.title}</h3>
+                <p className="text-sm admin-text-dim">{formatDate(post.createdAt)}</p>
                 {post.type !== 'text' && post.mediaUrl && (
                   <a href={post.mediaUrl} target="_blank" rel="noopener noreferrer" className="text-blue-400 text-sm hover:underline inline-block mt-1">
                     View {post.type} →
@@ -339,14 +345,14 @@ export default function ElearningManagement() {
                 <button onClick={() => handleDelete(post)} className="px-3 py-1 bg-red-600 hover:bg-red-700 rounded text-sm text-white">Delete</button>
               </div>
             </div>
-            <p className="mt-2 text-gray-200">{post.description}</p>
+            <p className="mt-2 admin-text-muted">{post.description}</p>
             {post.mediaUrl && (
               <div className="mt-3">
-                {post.type === 'image' && <img src={post.mediaUrl} alt={post.title} className="max-h-60 rounded border border-gray-600" />}
+                {post.type === 'image' && <img src={post.mediaUrl} alt={post.title} className="max-h-60 rounded border border-gray-300 dark:border-gray-600" />}
                 {post.type === 'audio' && <audio controls src={post.mediaUrl} className="w-full mt-2" />}
                 {post.type === 'video' && <video controls src={post.mediaUrl} className="w-full max-h-60 rounded mt-2" />}
                 {post.type === 'document' && (
-                  <a href={post.mediaUrl} target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:underline inline-block mt-2">
+                  <a href={post.mediaUrl} target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline inline-block mt-2">
                     View Document
                   </a>
                 )}

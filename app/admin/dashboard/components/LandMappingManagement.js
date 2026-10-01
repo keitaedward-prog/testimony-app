@@ -1,8 +1,9 @@
+//app/admin/dashboard/components/LandMappingManagement.js
 "use client";
 
 import { useState, useEffect } from 'react';
 import { db, auth } from '@/lib/firebase';
-import { collection, query, where, getDocs, updateDoc, doc, orderBy } from 'firebase/firestore';
+import { collection, query, where, getDocs, updateDoc, deleteDoc, doc, orderBy } from 'firebase/firestore';
 import { logAdminAction } from '@/lib/auditLogger';
 import Pagination from '@/app/components/Pagination';
 import Link from 'next/link';
@@ -11,7 +12,7 @@ import { useAuth } from '@/lib/useAuth';
 const PAGE_SIZE = 10;
 
 export default function LandMappingManagement() {
-  const { adminRole } = useAuth();
+  const { adminRole, user } = useAuth();
   const [posts, setPosts] = useState([]);
   const [filteredPosts, setFilteredPosts] = useState([]);
   const [displayedPosts, setDisplayedPosts] = useState([]);
@@ -20,15 +21,15 @@ export default function LandMappingManagement() {
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
 
-  useEffect(() => {
-    fetchPosts();
-  }, []);
+  const canDelete = user?.email === 'keitaedward@gmail.com';
+
+  useEffect(() => { fetchPosts(); }, []);
 
   useEffect(() => {
     let filtered = posts;
     if (searchTerm) {
       const term = searchTerm.toLowerCase();
-      filtered = posts.filter(p => 
+      filtered = posts.filter(p =>
         p.title?.toLowerCase().includes(term) ||
         p.description?.toLowerCase().includes(term) ||
         p.coordinates?.placeName?.toLowerCase().includes(term) ||
@@ -42,19 +43,14 @@ export default function LandMappingManagement() {
 
   useEffect(() => {
     const start = (currentPage - 1) * PAGE_SIZE;
-    const end = start + PAGE_SIZE;
-    setDisplayedPosts(filteredPosts.slice(start, end));
+    setDisplayedPosts(filteredPosts.slice(start, start + PAGE_SIZE));
     setTotalPages(Math.ceil(filteredPosts.length / PAGE_SIZE));
   }, [filteredPosts, currentPage]);
 
   const fetchPosts = async () => {
     setLoading(true);
     try {
-      const q = query(
-        collection(db, 'testimonies'),
-        where('type', '==', 'coordinates'),
-        orderBy('createdAt', 'desc')
-      );
+      const q = query(collection(db, 'testimonies'), where('type', '==', 'coordinates'), orderBy('createdAt', 'desc'));
       const snapshot = await getDocs(q);
       const fetched = snapshot.docs.map(d => ({
         id: d.id,
@@ -69,7 +65,6 @@ export default function LandMappingManagement() {
     }
   };
 
-  // Verify land (only land_admin)
   const handleVerify = async (post) => {
     if (adminRole !== 'land_admin') {
       alert('You are not authorised to verify lands.');
@@ -91,11 +86,20 @@ export default function LandMappingManagement() {
     }
   };
 
-  const formatDate = (ts) => {
-    if (!ts) return '';
-    const d = new Date(ts);
-    return d.toLocaleDateString();
+  const handleDelete = async (post) => {
+    if (!confirm('Permanently delete this land mapping post? This cannot be undone.')) return;
+    try {
+      await deleteDoc(doc(db, 'testimonies', post.id));
+      await logAdminAction('delete_landmapping', 'land', post.id, { title: post.title });
+      alert('Land mapping post deleted.');
+      fetchPosts();
+    } catch (error) {
+      console.error(error);
+      alert('Failed to delete post');
+    }
   };
+
+  const formatDate = (ts) => (ts ? new Date(ts).toLocaleDateString() : '');
 
   const getUserDisplay = (post) => {
     if (post.userName && !post.userName.startsWith('User ')) {
@@ -108,15 +112,15 @@ export default function LandMappingManagement() {
 
   return (
     <div>
-      <h2 className="text-2xl font-bold mb-6">Land Mapping Posts</h2>
+      <h2 className="text-xl md:text-2xl font-bold mb-4 md:mb-6">Land Mapping Posts</h2>
 
-      <div className="mb-6">
+      <div className="mb-4 md:mb-6">
         <input
           type="text"
           placeholder="Search by title, description, place name, or user..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
-          className="w-full p-3 bg-gray-800 border border-gray-700 rounded"
+          className="w-full p-3 admin-elevated border admin-border rounded-lg admin-text placeholder:admin-text-dim focus:ring-2 focus:ring-blue-500 outline-none"
         />
       </div>
 
@@ -124,71 +128,70 @@ export default function LandMappingManagement() {
         {displayedPosts.map(post => (
           <div
             key={post.id}
-            className="bg-gray-700 border border-gray-600 rounded-xl p-4 shadow-md hover:shadow-lg transition-shadow"
+            className="admin-elevated border admin-border rounded-xl p-4 shadow-md hover:shadow-lg transition-all duration-300 hover:scale-[1.01]"
           >
-            <div className="flex justify-between items-start">
-              <div className="flex-1">
-                <h3 className="text-xl font-bold text-white">{post.title || 'Untitled Coordinates'}</h3>
-                <p className="text-sm text-gray-300">{formatDate(post.createdAt)}</p>
-                <p className="text-sm text-blue-300 mt-1">
-                  Posted by: {getUserDisplay(post)}
-                </p>
+            <div className="flex justify-between items-start flex-wrap gap-3">
+              <div className="flex-1 min-w-0">
+                <h3 className="text-lg md:text-xl font-bold admin-text">{post.title || 'Untitled Coordinates'}</h3>
+                <p className="text-xs md:text-sm admin-text-dim">{formatDate(post.createdAt)}</p>
+                <p className="text-sm text-blue-500 mt-1">Posted by: {getUserDisplay(post)}</p>
                 {post.coordinates?.placeName && (
-                  <p className="text-green-300 mt-1">📍 {post.coordinates.placeName}</p>
+                  <p className="text-sm text-green-500 mt-1">📍 {post.coordinates.placeName}</p>
                 )}
                 <div className="mt-2">
-                  <span className={`px-2 py-1 rounded text-xs font-medium ${
-                    post.verified ? 'bg-green-600 text-white' : 'bg-yellow-600 text-white'
+                  <span className={`px-2 py-1 rounded text-xs font-medium text-white ${
+                    post.verified ? 'bg-green-600' : 'bg-yellow-600'
                   }`}>
                     {post.verified ? '✅ Verified' : '⏳ Not Verified'}
                   </span>
                 </div>
               </div>
-              <div className="flex items-center space-x-2">
+              <div className="flex items-center gap-2 flex-wrap">
                 <Link
                   href={`/post/${post.id}?admin=true`}
-                  className="text-blue-400 hover:text-blue-300 text-sm mr-2 underline"
+                  className="text-blue-500 hover:text-blue-400 text-sm underline"
                 >
-                  View Details →
+                  View →
                 </Link>
-                {/* Verify button – only land_admin */}
                 {adminRole === 'land_admin' && (
                   <button
                     onClick={() => handleVerify(post)}
-                    className={`px-3 py-1 rounded text-sm font-medium ${
-                      post.verified
-                        ? 'bg-yellow-600 hover:bg-yellow-700 text-white'
-                        : 'bg-green-600 hover:bg-green-700 text-white'
+                    className={`px-3 py-1 rounded text-sm font-medium text-white transition active:scale-95 ${
+                      post.verified ? 'bg-yellow-600 hover:bg-yellow-700' : 'bg-green-600 hover:bg-green-700'
                     }`}
                   >
                     {post.verified ? 'Unverify' : 'Verify'}
                   </button>
                 )}
+                {canDelete && (
+                  <button
+                    onClick={() => handleDelete(post)}
+                    className="px-3 py-1 rounded text-sm font-medium text-white bg-red-600 hover:bg-red-700 transition active:scale-95"
+                  >
+                    🗑️ Delete
+                  </button>
+                )}
               </div>
             </div>
 
-            {/* Description */}
-            <p className="mt-2 text-gray-200">{post.description || 'No description'}</p>
+            <p className="mt-2 admin-text-muted">{post.description || 'No description'}</p>
 
-            {/* Coordinates */}
             {post.coordinates && (
-              <div className="mt-2 text-sm text-gray-300">
+              <div className="mt-2 text-xs md:text-sm admin-text-muted">
                 <p>Latitude: {post.coordinates.latitude?.toFixed(6)}</p>
                 <p>Longitude: {post.coordinates.longitude?.toFixed(6)}</p>
               </div>
             )}
 
-            {/* Corners count */}
             {post.fourCorners && (
-              <div className="mt-2 text-sm text-purple-300">
+              <div className="mt-2 text-sm text-purple-500">
                 <p className="font-medium">Corners: {post.fourCorners.length}</p>
               </div>
             )}
 
-            {/* Documents */}
             {post.documents && post.documents.length > 0 && (
               <div className="mt-3">
-                <p className="font-medium text-white">📎 Documents:</p>
+                <p className="font-medium admin-text">📎 Documents:</p>
                 <div className="flex flex-wrap gap-2 mt-1">
                   {post.documents.map((doc, idx) => (
                     <a
@@ -196,9 +199,9 @@ export default function LandMappingManagement() {
                       href={doc.url}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="text-blue-400 hover:text-blue-300 underline text-sm bg-gray-800 px-2 py-1 rounded"
+                      className="text-blue-500 hover:text-blue-400 underline text-sm bg-[var(--admin-hover)] px-2 py-1 rounded"
                     >
-                      📄 Document {idx+1}
+                      📄 Document {idx + 1}
                     </a>
                   ))}
                 </div>

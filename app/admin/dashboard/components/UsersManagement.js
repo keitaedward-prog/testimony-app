@@ -289,18 +289,18 @@ export default function UsersManagement() {
             placeholder="🔍 Search users..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:ring-2 focus:ring-blue-500"
+            className="w-full px-4 py-3 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg admin-text placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-blue-500 outline-none"
           />
           {searchTerm && (
             <button
               onClick={() => setSearchTerm('')}
-              className="absolute right-3 top-3 text-gray-400 hover:text-white"
+              className="absolute right-3 top-3 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-white"
             >
               ✕
             </button>
           )}
         </div>
-        <p className="text-sm text-gray-400 mt-2">
+        <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">
           {filteredUsers.length} of {users.length} users shown
         </p>
       </div>
@@ -308,7 +308,7 @@ export default function UsersManagement() {
       {/* Add User Modal */}
       {showAddUser && (
         <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50">
-          <div className="bg-gray-800 rounded-xl p-6 w-full max-w-md">
+          <div className="bg-white dark:bg-gray-800 rounded-xl p-6 w-full max-w-md">
             <h3 className="text-xl font-bold mb-4">Add New User</h3>
             <form onSubmit={handleAddUser}>
               <div className="grid grid-cols-2 gap-4">
@@ -317,7 +317,7 @@ export default function UsersManagement() {
                   placeholder="First Name *"
                   value={newUser.firstName}
                   onChange={(e) => setNewUser({...newUser, firstName: e.target.value})}
-                  className="col-span-1 bg-gray-700 border border-gray-600 rounded-lg px-4 py-2"
+                  className="col-span-1 bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg px-4 py-2"
                   required
                 />
                 <input
@@ -325,7 +325,7 @@ export default function UsersManagement() {
                   placeholder="Last Name"
                   value={newUser.lastName}
                   onChange={(e) => setNewUser({...newUser, lastName: e.target.value})}
-                  className="col-span-1 bg-gray-700 border border-gray-600 rounded-lg px-4 py-2"
+                  className="col-span-1 bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg px-4 py-2"
                 />
               </div>
               <input
@@ -333,14 +333,14 @@ export default function UsersManagement() {
                 placeholder="Email (Optional)"
                 value={newUser.email}
                 onChange={(e) => setNewUser({...newUser, email: e.target.value})}
-                className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 mt-4"
+                className="w-full bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg px-4 py-2 mt-4"
               />
               <input
                 type="tel"
                 placeholder="Phone Number * (e.g., +232123456789)"
                 value={newUser.phone}
                 onChange={(e) => setNewUser({...newUser, phone: e.target.value})}
-                className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 mt-4"
+                className="w-full bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg px-4 py-2 mt-4"
                 required
               />
               <input
@@ -348,7 +348,7 @@ export default function UsersManagement() {
                 placeholder="Password *"
                 value={newUser.password}
                 onChange={(e) => setNewUser({...newUser, password: e.target.value})}
-                className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 mt-4"
+                className="w-full bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg px-4 py-2 mt-4"
                 required
               />
               <div className="mt-4">
@@ -356,7 +356,7 @@ export default function UsersManagement() {
                 <select
                   value={newUser.role}
                   onChange={(e) => setNewUser({...newUser, role: e.target.value})}
-                  className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2"
+                  className="w-full bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg px-4 py-2"
                 >
                   <option value="user">User</option>
                   <option value="admin">Admin</option>
@@ -378,7 +378,7 @@ export default function UsersManagement() {
                 <button type="submit" disabled={loading} className="flex-1 py-2 bg-green-600 hover:bg-green-700 rounded-lg disabled:opacity-50">
                   {loading ? 'Creating...' : 'Create User'}
                 </button>
-                <button type="button" onClick={() => setShowAddUser(false)} className="flex-1 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg">
+                <button type="button" onClick={() => setShowAddUser(false)} className="flex-1 py-2 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 rounded-lg">
                   Cancel
                 </button>
               </div>
@@ -390,13 +390,13 @@ export default function UsersManagement() {
       {/* Role Change Modal */}
       {showRoleModal && (
         <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50">
-          <div className="bg-gray-800 rounded-xl p-6 w-full max-w-md">
+          <div className="bg-white dark:bg-gray-800 rounded-xl p-6 w-full max-w-md">
             <h3 className="text-xl font-bold mb-4">Change Role</h3>
             <p className="mb-2">User: {showRoleModal.firstName} {showRoleModal.lastName}</p>
             <select
               value={selectedRole}
               onChange={(e) => setSelectedRole(e.target.value)}
-              className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 mb-4"
+              className="w-full bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg px-4 py-2 mb-4"
             >
               <option value="user">User</option>
               <option value="admin">Admin</option>
@@ -405,7 +405,7 @@ export default function UsersManagement() {
             </select>
             <div className="flex space-x-4">
               <button onClick={saveRoleChange} className="flex-1 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg">Save</button>
-              <button onClick={() => setShowRoleModal(null)} className="flex-1 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg">Cancel</button>
+              <button onClick={() => setShowRoleModal(null)} className="flex-1 py-2 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 rounded-lg">Cancel</button>
             </div>
           </div>
         </div>
@@ -413,7 +413,7 @@ export default function UsersManagement() {
 
       {/* User Table */}
       {filteredUsers.length === 0 ? (
-        <div className="text-center py-12 text-gray-400">
+        <div className="text-center py-12 text-gray-500 dark:text-gray-400">
           <div className="text-6xl mb-4">👥</div>
           <h3 className="text-xl font-medium mb-2">
             {users.length === 0 ? 'No users found' : 'No matching users'}
@@ -422,18 +422,18 @@ export default function UsersManagement() {
       ) : (
         <div className="overflow-x-auto">
           <table className="w-full text-sm text-left">
-            <thead className="bg-gray-700">
+            <thead className="bg-gray-100 dark:bg-gray-700">
               <tr>
-                <th className="px-6 py-3">User Info</th>
-                <th className="px-6 py-3">Contact</th>
-                <th className="px-6 py-3">Role</th>
-                <th className="px-6 py-3">Created</th>
-                <th className="px-6 py-3">Actions</th>
+                <th className="px-6 py-3 admin-text-muted text-left">User Info</th>
+                <th className="px-6 py-3 admin-text-muted text-left">Contact</th>
+                <th className="px-6 py-3 admin-text-muted text-left">Role</th>
+                <th className="px-6 py-3 admin-text-muted text-left">Created</th>
+                <th className="px-6 py-3 admin-text-muted text-left">Actions</th>
               </tr>
             </thead>
             <tbody>
               {filteredUsers.map((user) => (
-                <tr key={user.id} className="border-b border-gray-700 hover:bg-gray-750">
+                <tr key={user.id} className="border-b border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-750">
                   <td className="px-6 py-4">
                     <div className="flex items-center">
                       <div className="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center mr-3">
@@ -441,13 +441,13 @@ export default function UsersManagement() {
                       </div>
                       <div>
                         <div className="font-medium">{user.firstName} {user.lastName}</div>
-                        <div className="text-gray-400 text-xs">ID: {user.uid?.substring(0,8)}...</div>
+                        <div className="text-gray-500 dark:text-gray-400 text-xs">ID: {user.uid?.substring(0,8)}...</div>
                       </div>
                     </div>
                   </td>
                   <td className="px-6 py-4">
-                    {user.email && <div className="text-gray-300">📧 {user.email}</div>}
-                    <div className="text-gray-300">📱 {user.phone || 'No phone'}</div>
+                    {user.email && <div className="text-gray-700 dark:text-gray-300">📧 {user.email}</div>}
+                    <div className="text-gray-700 dark:text-gray-300">📱 {user.phone || 'No phone'}</div>
                   </td>
                   <td className="px-6 py-4">
                     {user.role && user.role !== 'user' ? (
@@ -455,7 +455,7 @@ export default function UsersManagement() {
                         {user.role.toUpperCase().replace('_', ' ')}
                       </span>
                     ) : (
-                      <span className="text-gray-400">User</span>
+                      <span className="text-gray-500 dark:text-gray-400">User</span>
                     )}
                   </td>
                   <td className="px-6 py-4">{formatDate(user.createdAt)}</td>
@@ -486,7 +486,7 @@ export default function UsersManagement() {
                         </>
                       )}
                       {adminRole !== 'admin' && (
-                        <span className="text-xs text-gray-400">Read-only</span>
+                        <span className="text-xs text-gray-500 dark:text-gray-400">Read-only</span>
                       )}
                     </div>
                   </td>

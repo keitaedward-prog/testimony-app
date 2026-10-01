@@ -1,46 +1,83 @@
-// app/admin/dashboard/components/AdminSidebar.js - UPDATED (NEW MENU ITEMS)
-export default function AdminSidebar({ activeTab, setActiveTab }) {
+// app/admin/dashboard/components/AdminSidebar.js
+"use client";
+
+import { FaBars, FaTimes } from 'react-icons/fa';
+
+export default function AdminSidebar({ activeTab, setActiveTab, isOpen, setIsOpen }) {
   const menuItems = [
-    { id: 'overview', label: '📊 Overview', icon: '📊' },
-    { id: 'posts', label: '📝 Manage Posts (Testimonies)', icon: '📝' },
-    { id: 'landmapping', label: '🗺️ Land Mapping', icon: '🗺️' },
-    { id: 'elearning', label: '📚 E‑Learning', icon: '📚' },
-    { id: 'users', label: '👥 Manage Users', icon: '👥' },
-    { id: 'reports', label: '📈 Reports', icon: '📈' },
-    { id: 'audit', label: '📋 Audit Logs', icon: '📋' },
-    { id: 'settings', label: '⚙️ Settings', icon: '⚙️' },
+    { id: 'overview', label: 'Overview', icon: '📊' },
+    { id: 'posts', label: 'Manage Posts', icon: '📝' },
+    { id: 'landmapping', label: 'Land Mapping', icon: '🗺️' },
+    { id: 'elearning', label: 'E‑Learning', icon: '📚' },
+    { id: 'users', label: 'Manage Users', icon: '👥' },
+    { id: 'reports', label: 'Reports', icon: '📈' },
+    { id: 'audit', label: 'Audit Logs', icon: '📋' },
+    { id: 'settings', label: 'Settings', icon: '⚙️' },
   ];
 
+  const handleItemClick = (id) => {
+    setActiveTab(id);
+    if (typeof window !== 'undefined' && window.innerWidth < 768) {
+      setIsOpen(false);
+    }
+  };
+
   return (
-    <aside className="w-64 bg-gray-800 border-r border-gray-700 min-h-screen p-4">
-      <nav className="space-y-2">
-        {menuItems.map((item) => (
+    <>
+      {/* Mobile overlay */}
+      {isOpen && (
+        <div
+          className="fixed inset-0 bg-black/60 backdrop-blur-sm z-30 md:hidden animate-fade-in"
+          onClick={() => setIsOpen(false)}
+        />
+      )}
+
+      {/* Sidebar */}
+      <aside
+        className={`
+          fixed md:sticky top-0 left-0 h-screen z-40
+          w-64 md:w-64
+          admin-card border-r admin-border
+          p-4 overflow-y-auto
+          transform transition-transform duration-300 ease-out
+          ${isOpen ? 'translate-x-0 animate-slide-in' : '-translate-x-full md:translate-x-0'}
+        `}
+      >
+        {/* Mobile header */}
+        <div className="flex items-center justify-between mb-4 md:hidden">
+          <span className="font-bold admin-text">Menu</span>
           <button
-            key={item.id}
-            onClick={() => setActiveTab(item.id)}
-            className={`w-full flex items-center space-x-3 px-4 py-3 rounded-lg transition ${
-              activeTab === item.id
-                ? 'bg-blue-600 text-white'
-                : 'text-gray-300 hover:bg-gray-700'
-            }`}
+            onClick={() => setIsOpen(false)}
+            className="p-2 rounded-lg admin-text-muted hover:bg-[var(--admin-hover)] transition"
+            aria-label="Close menu"
           >
-            <span className="text-xl">{item.icon}</span>
-            <span className="font-medium">{item.label}</span>
+            <FaTimes />
           </button>
-        ))}
-      </nav>
-      
-      {/* Quick Actions section has been removed */}
-      
-      {/* Optional: You can add other information here if needed */}
-      <div className="mt-8 p-4 bg-gray-900/50 rounded-lg">
-        <h3 className="font-bold mb-2">ℹ️ Information</h3>
-        <div className="space-y-2 text-sm text-gray-300">
-          <p>Total Posts: Loading...</p>
-          <p>Pending Reviews: Loading...</p>
-          <p>Total Users: Loading...</p>
         </div>
-      </div>
-    </aside>
+
+        <nav className="space-y-1">
+          {menuItems.map((item) => {
+            const isActive = activeTab === item.id;
+            return (
+              <button
+                key={item.id}
+                onClick={() => handleItemClick(item.id)}
+                className={`
+                  w-full flex items-center gap-3 px-4 py-3 rounded-xl
+                  transition-all duration-200 text-sm font-medium
+                  ${isActive
+                    ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg shadow-blue-500/30 scale-[1.02]'
+                    : 'admin-text-muted hover:bg-[var(--admin-hover)] hover:translate-x-1'
+                  }
+                `}
+              >
+                <span className="text-xl">{item.icon}</span>
+                <span>{item.label}</span>
+              </button>
+            );
+          })}
+        </nav>
+      </aside>
+    </>
   );
 }
