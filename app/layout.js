@@ -14,7 +14,7 @@ export const metadata = {
 const themeScript = `
 (function() {
   try {
-    var theme = localStorage.getItem('theme') || 'dark';
+    var theme = localStorage.getItem('theme') || 'light';
     var root = document.documentElement;
     root.classList.remove('light', 'dark');
     root.classList.add(theme);
